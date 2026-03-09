@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch JustTooFast.JrpgEngine",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-engine",
+      "program": "${workspaceFolder}/src/JrpgEngine/bin/Debug/net10.0/JustTooFast.JrpgEngine.dll",
+      "cwd": "${workspaceFolder}/src/JrpgEngine",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    }
+  ]
+}
