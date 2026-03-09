@@ -1,0 +1,11 @@
+{
+  "id": "dlg_test_chest_01_opened",
+  "variants": [
+    {
+      "lines": [
+        "The chest is empty."
+      ],
+      "results": []
+    }
+  ]
+}

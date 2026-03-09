@@ -1,0 +1,11 @@
+{
+  "id": "dlg_test_chest_01",
+  "variants": [
+    {
+      "lines": [
+        "You found a Potion."
+      ],
+      "results": []
+    }
+  ]
+}
