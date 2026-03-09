@@ -54,9 +54,18 @@ public sealed class MapCollisionService
         }
 
         var built = new HashSet<TileCoord>();
+
         foreach (var blockedTile in mapDef.BlockedTiles)
         {
             built.Add(new TileCoord(blockedTile.X, blockedTile.Y));
+        }
+
+        foreach (var mapObject in mapDef.Objects)
+        {
+            if (mapObject.BlocksMovement)
+            {
+                built.Add(new TileCoord(mapObject.X, mapObject.Y));
+            }
         }
 
         _blockedTileCache.Add(mapDef.Id, built);

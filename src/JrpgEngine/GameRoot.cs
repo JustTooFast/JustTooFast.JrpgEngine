@@ -1,13 +1,11 @@
 ﻿// Copyright 2026 Matthew Yancer
 // SPDX-License-Identifier: Apache-2.0
 
-// Copyright 2026 Matthew Yancer
-// SPDX-License-Identifier: Apache-2.0
-
 using System;
 using System.IO;
 using JustTooFast.JrpgEngine.Core;
 using JustTooFast.JrpgEngine.Definitions;
+using JustTooFast.JrpgEngine.Dialogue;
 using JustTooFast.JrpgEngine.Maps;
 using JustTooFast.JrpgEngine.Menus;
 using JustTooFast.JrpgEngine.Rendering;
@@ -32,9 +30,12 @@ public sealed class GameRoot : Game
     private MapCollisionService? _mapCollisionService;
 
     private Texture2D? _debugPixel;
+    private SpriteFont? _debugFont;
     private MapRenderer? _mapRenderer;
     private PlayerRenderer? _playerRenderer;
+    private NpcRenderer? _npcRenderer;
     private PauseMenuOverlay? _pauseMenuOverlay;
+    private DialogueOverlay? _dialogueOverlay;
 
     public GameRoot()
     {
@@ -49,9 +50,13 @@ public sealed class GameRoot : Game
         _spriteBatch = new SpriteBatch(GraphicsDevice);
 
         _debugPixel = DebugTextureFactory.CreateSolidTexture(GraphicsDevice, Color.White);
+        _debugFont = Content.Load<SpriteFont>("Fonts/DebugFont");
+
         _mapRenderer = new MapRenderer(_debugPixel);
         _playerRenderer = new PlayerRenderer(_debugPixel);
+        _npcRenderer = new NpcRenderer(_debugPixel);
         _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
+        _dialogueOverlay = new DialogueOverlay(_debugPixel, _debugFont);
 
         var dataRoot = ResolveDataRoot();
 
@@ -141,9 +146,19 @@ public sealed class GameRoot : Game
             throw new InvalidOperationException("PlayerRenderer has not been initialized.");
         }
 
+        if (_npcRenderer is null)
+        {
+            throw new InvalidOperationException("NpcRenderer has not been initialized.");
+        }
+
         if (_pauseMenuOverlay is null)
         {
             throw new InvalidOperationException("PauseMenuOverlay has not been initialized.");
+        }
+
+        if (_dialogueOverlay is null)
+        {
+            throw new InvalidOperationException("DialogueOverlay has not been initialized.");
         }
 
         return new MapScene(
@@ -152,7 +167,9 @@ public sealed class GameRoot : Game
             _mapCollisionService,
             _mapRenderer,
             _playerRenderer,
-            _pauseMenuOverlay);
+            _npcRenderer,
+            _pauseMenuOverlay,
+            _dialogueOverlay);
     }
 
     private static string ResolveDataRoot()
