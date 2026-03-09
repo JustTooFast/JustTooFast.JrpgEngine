@@ -59,6 +59,14 @@
       "y": 2,
       "blocksMovement": true,
       "interactionId": "int_test_npc_01"
+    },
+    {
+      "id": "chest_test_01",
+      "type": "Chest",
+      "x": 6,
+      "y": 6,
+      "blocksMovement": true,
+      "interactionId": "int_test_chest_01"
     }
   ]
 }

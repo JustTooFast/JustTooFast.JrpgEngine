@@ -1,13 +1,11 @@
 // Copyright 2026 Matthew Yancer
 // SPDX-License-Identifier: Apache-2.0
 
-using System.Collections.Generic;
-
 namespace JustTooFast.JrpgEngine.Definitions;
 
-public sealed class DialogueDef
+public sealed class ItemDef
 {
     public string Id { get; set; } = string.Empty;
 
-    public List<DialogueVariantDef> Variants { get; set; } = new();
+    public string Name { get; set; } = string.Empty;
 }

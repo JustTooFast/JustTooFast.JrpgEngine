@@ -1,8 +1,31 @@
 {
   "id": "dlg_test_npc_01",
-  "lines": [
-    "Hello there.",
-    "This is the first NPC dialogue test.",
-    "Slice 2 is working."
+  "variants": [
+    {
+      "condition": {
+        "lacksFlag": "flag_spoke_to_test_npc"
+      },
+      "lines": [
+        "Hello there.",
+        "This is the first NPC dialogue test.",
+        "Now I will set a flag."
+      ],
+      "results": [
+        {
+          "type": "SetFlag",
+          "flagId": "flag_spoke_to_test_npc"
+        }
+      ]
+    },
+    {
+      "condition": {
+        "hasFlag": "flag_spoke_to_test_npc"
+      },
+      "lines": [
+        "Oh, it's you again.",
+        "The flag was already set."
+      ],
+      "results": []
+    }
   ]
 }

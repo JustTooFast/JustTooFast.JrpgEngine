@@ -27,21 +27,24 @@ public static class DefinitionLoader
         var charactersPath = Path.Combine(dataRoot, "characters");
         var dialoguesPath = Path.Combine(dataRoot, "dialogues");
         var interactionsPath = Path.Combine(dataRoot, "interactions");
+        var itemsPath = Path.Combine(dataRoot, "items");
 
         var gameConfig = JsonFile.Load<GameConfig>(gameConfigPath);
         var maps = LoadMapDefinitions(mapsPath);
         var characters = LoadCharacterDefinitions(charactersPath);
         var dialogues = LoadDialogueDefinitions(dialoguesPath);
         var interactions = LoadInteractionDefinitions(interactionsPath);
+        var items = LoadItemDefinitions(itemsPath);
 
         ValidateGameConfig(gameConfig);
         ValidateMaps(maps);
         ValidateCharacters(characters);
         ValidateDialogues(dialogues);
         ValidateInteractions(interactions);
-        ValidateCrossReferences(gameConfig, maps, characters, dialogues, interactions);
+        ValidateItems(items);
+        ValidateCrossReferences(gameConfig, maps, characters, dialogues, interactions, items);
 
-        return new DefinitionDatabase(gameConfig, maps, characters, dialogues, interactions);
+        return new DefinitionDatabase(gameConfig, maps, characters, dialogues, interactions, items);
     }
 
     private static Dictionary<string, MapDef> LoadMapDefinitions(string mapsPath)
@@ -180,6 +183,40 @@ public static class DefinitionLoader
         return interactions;
     }
 
+    private static Dictionary<string, ItemDef> LoadItemDefinitions(string itemsPath)
+    {
+        if (!Directory.Exists(itemsPath))
+        {
+            throw new DirectoryNotFoundException($"Items folder not found: {itemsPath}");
+        }
+
+        var itemFiles = Directory.GetFiles(itemsPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (itemFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No item definition files found in: {itemsPath}");
+        }
+
+        var items = new Dictionary<string, ItemDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in itemFiles)
+        {
+            var itemDef = JsonFile.Load<ItemDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(itemDef.Id))
+            {
+                throw new InvalidOperationException($"Item definition in '{filePath}' is missing Id.");
+            }
+
+            if (!items.TryAdd(itemDef.Id, itemDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate item id '{itemDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return items;
+    }
+
     private static void ValidateGameConfig(GameConfig gameConfig)
     {
         if (string.IsNullOrWhiteSpace(gameConfig.StartingMapId))
@@ -298,21 +335,80 @@ public static class DefinitionLoader
     {
         foreach (var (dialogueId, dialogueDef) in dialogues)
         {
-            if (dialogueDef.Lines.Count == 0)
+            if (dialogueDef.Variants.Count == 0)
             {
                 throw new InvalidOperationException(
-                    $"Dialogue '{dialogueId}' must contain at least one line.");
+                    $"Dialogue '{dialogueId}' must contain at least one variant.");
             }
 
-            for (var i = 0; i < dialogueDef.Lines.Count; i++)
+            for (var variantIndex = 0; variantIndex < dialogueDef.Variants.Count; variantIndex++)
             {
-                if (string.IsNullOrWhiteSpace(dialogueDef.Lines[i]))
+                var variant = dialogueDef.Variants[variantIndex];
+
+                if (variant.Lines.Count == 0)
                 {
                     throw new InvalidOperationException(
-                        $"Dialogue '{dialogueId}' contains an empty line at index {i}.");
+                        $"Dialogue '{dialogueId}' variant {variantIndex} must contain at least one line.");
+                }
+
+                for (var lineIndex = 0; lineIndex < variant.Lines.Count; lineIndex++)
+                {
+                    if (string.IsNullOrWhiteSpace(variant.Lines[lineIndex]))
+                    {
+                        throw new InvalidOperationException(
+                            $"Dialogue '{dialogueId}' variant {variantIndex} contains an empty line at index {lineIndex}.");
+                    }
+                }
+
+                foreach (var result in variant.Results)
+                {
+                    ValidateInteractionResult(dialogueId, variantIndex, result);
                 }
             }
         }
+    }
+
+    private static void ValidateInteractionResult(
+        string dialogueId,
+        int variantIndex,
+        InteractionResultDef result)
+    {
+        if (string.IsNullOrWhiteSpace(result.Type))
+        {
+            throw new InvalidOperationException(
+                $"Dialogue '{dialogueId}' variant {variantIndex} contains a result with missing Type.");
+        }
+
+        if (string.Equals(result.Type, "SetFlag", StringComparison.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(result.FlagId))
+            {
+                throw new InvalidOperationException(
+                    $"Dialogue '{dialogueId}' variant {variantIndex} has SetFlag result with missing FlagId.");
+            }
+
+            return;
+        }
+
+        if (string.Equals(result.Type, "GiveItem", StringComparison.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(result.ItemId))
+            {
+                throw new InvalidOperationException(
+                    $"Dialogue '{dialogueId}' variant {variantIndex} has GiveItem result with missing ItemId.");
+            }
+
+            if (result.Amount <= 0)
+            {
+                throw new InvalidOperationException(
+                    $"Dialogue '{dialogueId}' variant {variantIndex} has GiveItem result with Amount <= 0.");
+            }
+
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Dialogue '{dialogueId}' variant {variantIndex} has unsupported result Type '{result.Type}'.");
     }
 
     private static void ValidateInteractions(IReadOnlyDictionary<string, InteractionDef> interactions)
@@ -325,16 +421,65 @@ public static class DefinitionLoader
                     $"Interaction '{interactionId}' must have a non-empty Type.");
             }
 
-            if (!string.Equals(interactionDef.Type, "DialogueNpc", StringComparison.Ordinal))
+            if (string.Equals(interactionDef.Type, "DialogueNpc", StringComparison.Ordinal))
             {
-                throw new InvalidOperationException(
-                    $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 2.");
+                if (string.IsNullOrWhiteSpace(interactionDef.DialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' must have a non-empty DialogueId.");
+                }
+
+                continue;
             }
 
-            if (string.IsNullOrWhiteSpace(interactionDef.DialogueId))
+            if (string.Equals(interactionDef.Type, "Chest", StringComparison.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(interactionDef.DialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' must have a non-empty DialogueId.");
+                }
+
+                if (string.IsNullOrWhiteSpace(interactionDef.ItemId))
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' must have a non-empty ItemId.");
+                }
+
+                if (interactionDef.Amount <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' must have Amount > 0.");
+                }
+
+                if (string.IsNullOrWhiteSpace(interactionDef.OpenFlagId))
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' must have a non-empty OpenFlagId.");
+                }
+
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 3.");
+        }
+    }
+
+    private static void ValidateItems(IReadOnlyDictionary<string, ItemDef> items)
+    {
+        foreach (var (itemId, itemDef) in items)
+        {
+            if (string.IsNullOrWhiteSpace(itemDef.Id))
             {
                 throw new InvalidOperationException(
-                    $"Interaction '{interactionId}' must have a non-empty DialogueId.");
+                    $"Item '{itemId}' must have a non-empty Id.");
+            }
+
+            if (string.IsNullOrWhiteSpace(itemDef.Name))
+            {
+                throw new InvalidOperationException(
+                    $"Item '{itemId}' must have a non-empty Name.");
             }
         }
     }
@@ -344,7 +489,8 @@ public static class DefinitionLoader
         IReadOnlyDictionary<string, MapDef> maps,
         IReadOnlyDictionary<string, CharacterDef> characters,
         IReadOnlyDictionary<string, DialogueDef> dialogues,
-        IReadOnlyDictionary<string, InteractionDef> interactions)
+        IReadOnlyDictionary<string, InteractionDef> interactions,
+        IReadOnlyDictionary<string, ItemDef> items)
     {
         if (!maps.TryGetValue(gameConfig.StartingMapId, out var startingMap))
         {
@@ -420,12 +566,43 @@ public static class DefinitionLoader
 
         foreach (var (interactionId, interactionDef) in interactions)
         {
-            if (string.Equals(interactionDef.Type, "DialogueNpc", StringComparison.Ordinal) &&
-                !dialogues.ContainsKey(interactionDef.DialogueId))
+            if (string.Equals(interactionDef.Type, "DialogueNpc", StringComparison.Ordinal))
             {
-                throw new InvalidOperationException(
-                    $"Interaction '{interactionId}' references missing dialogue '{interactionDef.DialogueId}'.");
+                if (!dialogues.ContainsKey(interactionDef.DialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' references missing dialogue '{interactionDef.DialogueId}'.");
+                }
+
+                continue;
             }
+
+            if (string.Equals(interactionDef.Type, "Chest", StringComparison.Ordinal))
+            {
+                if (!dialogues.ContainsKey(interactionDef.DialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' references missing dialogue '{interactionDef.DialogueId}'.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(interactionDef.OpenedDialogueId) &&
+                    !dialogues.ContainsKey(interactionDef.OpenedDialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' references missing opened dialogue '{interactionDef.OpenedDialogueId}'.");
+                }
+
+                if (!items.ContainsKey(interactionDef.ItemId))
+                {
+                    throw new InvalidOperationException(
+                        $"Chest interaction '{interactionId}' references missing item '{interactionDef.ItemId}'.");
+                }
+
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 3.");
         }
     }
 }

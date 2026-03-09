@@ -56,7 +56,7 @@ public sealed class MapScene : IScene
 
         RuntimeMap = new MapRuntime(GetCurrentMapDef());
         _playerMapMover = new PlayerMapMover(_mapCollisionService);
-        _interactionRunner = new MapInteractionRunner(_definitions);
+        _interactionRunner = new MapInteractionRunner(_definitions, GameState);
 
         _playerMapMover.InitializeFromGameState(GameState);
     }
@@ -187,11 +187,59 @@ public sealed class MapScene : IScene
             var finished = _activeDialogue.Advance();
             if (finished)
             {
+                ApplyDialogueResults(_activeDialogue);
                 _activeDialogue = null;
             }
         }
 
         _previousKeyboardState = keyboardState;
+    }
+
+    private void ApplyDialogueResults(DialogueSession dialogueSession)
+    {
+        if (dialogueSession is null)
+        {
+            throw new ArgumentNullException(nameof(dialogueSession));
+        }
+
+        foreach (var result in dialogueSession.Results)
+        {
+            if (string.Equals(result.Type, "SetFlag", StringComparison.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(result.FlagId))
+                {
+                    throw new InvalidOperationException("SetFlag result requires a non-empty FlagId.");
+                }
+
+                GameState.StoryFlags.Set(result.FlagId);
+                continue;
+            }
+
+            if (string.Equals(result.Type, "GiveItem", StringComparison.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(result.ItemId))
+                {
+                    throw new InvalidOperationException("GiveItem result requires a non-empty ItemId.");
+                }
+
+                if (result.Amount <= 0)
+                {
+                    throw new InvalidOperationException("GiveItem result requires Amount > 0.");
+                }
+
+                if (!_definitions.Items.ContainsKey(result.ItemId))
+                {
+                    throw new InvalidOperationException(
+                        $"GiveItem result references unknown item '{result.ItemId}'.");
+                }
+
+                GameState.Inventory.AddItem(result.ItemId, result.Amount);
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported dialogue result type '{result.Type}'.");
+        }
     }
 
     private void TryStartFrontTileInteraction()

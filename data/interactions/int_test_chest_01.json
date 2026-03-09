@@ -1,0 +1,9 @@
+{
+  "id": "int_test_chest_01",
+  "type": "Chest",
+  "dialogueId": "dlg_test_chest_01",
+  "openedDialogueId": "dlg_test_chest_01_opened",
+  "itemId": "item_potion",
+  "amount": 1,
+  "openFlagId": "flag_opened_test_chest_01"
+}

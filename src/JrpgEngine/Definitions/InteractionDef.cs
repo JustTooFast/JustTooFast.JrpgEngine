@@ -10,4 +10,12 @@ public sealed class InteractionDef
     public string Type { get; set; } = string.Empty;
 
     public string DialogueId { get; set; } = string.Empty;
+
+    public string OpenedDialogueId { get; set; } = string.Empty;
+
+    public string ItemId { get; set; } = string.Empty;
+
+    public int Amount { get; set; } = 1;
+
+    public string OpenFlagId { get; set; } = string.Empty;
 }

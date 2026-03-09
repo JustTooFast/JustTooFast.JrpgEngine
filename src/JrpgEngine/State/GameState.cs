@@ -36,5 +36,9 @@ public sealed class GameState
 
     public PartyState Party { get; }
 
+    public StoryFlagState StoryFlags { get; } = new();
+
+    public InventoryState Inventory { get; } = new();
+
     public bool IsPaused { get; set; }
 }

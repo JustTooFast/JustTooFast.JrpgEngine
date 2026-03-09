@@ -1,3 +1,4 @@
+
 # JustTooFast.JrpgEngine
 
 A **data-driven 2D JRPG engine** built in C# using **MonoGame**.
@@ -6,11 +7,11 @@ The engine is developed incrementally using **working vertical slices**.
 Each slice adds playable functionality while maintaining strict
 architectural separation between:
 
--   definitions (data)
--   runtime state
--   systems
--   scenes
--   rendering
+- definitions (data)
+- runtime state
+- systems
+- scenes
+- rendering
 
 This approach keeps the engine stable while gameplay systems are added.
 
@@ -18,26 +19,29 @@ This approach keeps the engine stable while gameplay systems are added.
 
 # Current Status
 
-**Slice 2: Map Interaction + Dialogue (Complete)**
+**Slice 3: Stateful Interactions + Inventory (Complete)**
 
 The engine can currently:
 
--   Load game definitions from external JSON data
--   Start a new game from a title screen
--   Load a test map
--   Move the party leader on the map
--   Block movement using tile collision
--   Interact with NPCs on the map
--   Display dialogue conversations
--   Render NPCs and dialogue UI
--   Pause the game using a map menu
+- Load game definitions from external JSON data
+- Start a new game from a title screen
+- Load a test map
+- Move the party leader on the map
+- Block movement using tile collision
+- Interact with NPCs on the map
+- Display dialogue conversations
+- Pause the game using a map menu
+- Use story flags to track world state
+- Change dialogue based on flag conditions
+- Open treasure chests
+- Add items to a player inventory
 
 Movement remains **tile-based for gameplay** but **smoothly interpolated
 visually**.
 
-Slice 2 introduces the first gameplay interaction loop on the map:
+Slice 3 expands the gameplay interaction loop:
 
-player → interaction → dialogue → return to map control
+player → interaction → dialogue → results → world state changes
 
 ------------------------------------------------------------------------
 
@@ -59,7 +63,13 @@ Game content is loaded from JSON files located in the `/data` directory.
 
 Example structure:
 
-data/ game/ maps/ characters/ dialogues/ interactions/
+data/
+- game/
+- maps/
+- characters/
+- dialogues/
+- interactions/
+- items/
 
 Definitions are loaded during engine startup through:
 
@@ -75,20 +85,21 @@ Maps are defined as tile grids.
 
 Example map definition fields:
 
--   id
--   width
--   height
--   tileSize
--   blockedTiles
--   objects
+- id
+- width
+- height
+- tileSize
+- blockedTiles
+- objects
 
 Blocked tiles prevent movement.
 
-Map objects allow placing interactive entities such as NPCs.
+Map objects allow placing interactive entities such as NPCs or chests.
 
 The runtime representation is handled by:
 
-MapRuntime MapCollisionService
+MapRuntime  
+MapCollisionService
 
 NPC tiles are treated as blocked tiles so players must stand adjacent to
 interact.
@@ -99,16 +110,17 @@ interact.
 
 Movement rules:
 
--   4 directions only
--   One tile at a time
--   No diagonal movement
--   Movement blocked by collision tiles or NPCs
--   Facing direction updates even if movement fails
--   Held input repeats movement with a delay
+- 4 directions only
+- One tile at a time
+- No diagonal movement
+- Movement blocked by collision tiles or objects
+- Facing direction updates even if movement fails
+- Held input repeats movement with a delay
 
 Gameplay position is tile-based:
 
-PlayerTileX PlayerTileY
+PlayerTileX  
+PlayerTileY
 
 Visual movement is interpolated between tiles using:
 
@@ -117,35 +129,148 @@ PlayerMapMover
 Tile movement commit points allow later systems to hook into movement
 events such as:
 
--   encounter steps
--   poison damage
--   environmental hazards
--   scripted triggers
+- encounter steps
+- poison damage
+- environmental hazards
+- scripted triggers
 
 ------------------------------------------------------------------------
 
 ## Map Interaction System
 
-Slice 2 introduces **front‑tile interaction**.
+Interactions use **front‑tile interaction**.
 
 Interaction rules:
 
--   Only the tile directly in front of the player is checked
--   No diagonal interaction
--   Only one object may be interacted with at a time
--   Interaction is triggered using the **Interact key**
+- Only the tile directly in front of the player is checked
+- No diagonal interaction
+- Only one object may be interacted with at a time
+- Interaction is triggered using the **Interact key**
 
 Objects reference interaction definitions which determine the behavior
 to run.
 
-Example interaction types planned:
+Example interaction types:
 
--   NPC dialogue
--   treasure chests
--   map transitions
--   scripted events
+- NPC dialogue
+- treasure chests
+- map transitions
+- scripted events
 
-Slice 2 implements **NPC dialogue only**.
+Slice 2 implemented NPC dialogue.
+
+Slice 3 introduces **treasure chests and stateful interactions**.
+
+------------------------------------------------------------------------
+
+## Dialogue System
+
+The dialogue system allows NPCs to present multi‑line conversations.
+
+Behavior:
+
+- Dialogue begins when interacting with an NPC
+- Dialogue advances with Enter or Space
+- Dialogue closes automatically after the final line
+
+While dialogue is active:
+
+- Player movement is disabled
+- Map interaction is disabled
+- Map menu cannot open
+
+Systems involved:
+
+DialogueSession  
+DialogueOverlay
+
+### Dialogue Variants
+
+Slice 3 introduces **conditional dialogue variants**.
+
+Dialogue can change depending on story flags.
+
+Example conditions:
+
+- `hasFlag`
+- `lacksFlag`
+
+This allows NPC dialogue to change after the player performs an action
+or after a conversation has already occurred.
+
+### Dialogue Results
+
+Dialogue variants can apply results when the conversation finishes.
+
+Supported result types:
+
+- `SetFlag`
+- `GiveItem`
+
+Results are executed **after the final dialogue line completes**.
+
+------------------------------------------------------------------------
+
+## Story Flags
+
+Slice 3 introduces a **story flag system**.
+
+Flags represent persistent world state such as:
+
+- NPC conversations completed
+- treasure chests opened
+- quest progress
+- story events
+
+Flags allow the engine to support conditional dialogue and one‑time
+interactions.
+
+Runtime system:
+
+StoryFlagState
+
+------------------------------------------------------------------------
+
+## Inventory System
+
+Slice 3 introduces a minimal **inventory system**.
+
+Capabilities:
+
+- store items
+- add items from interactions
+- check if an item exists
+
+This slice intentionally avoids:
+
+- equipment
+- stack limits
+- item usage
+- crafting
+
+These systems will be added in later slices.
+
+Runtime system:
+
+InventoryState
+
+------------------------------------------------------------------------
+
+## Treasure Chests
+
+Treasure chests are implemented as **normal interaction objects** placed
+on maps.
+
+Chest behavior:
+
+1. Player interacts with the chest
+2. Dialogue is shown describing the item
+3. Item is added to inventory
+4. A flag marks the chest as opened
+5. Future interactions show alternate dialogue
+
+Chests are defined entirely through interaction definitions rather than
+special map logic.
 
 ------------------------------------------------------------------------
 
@@ -164,63 +289,23 @@ Rendering is intentionally separated from gameplay logic.
 
 ------------------------------------------------------------------------
 
-## Dialogue System
-
-The dialogue system allows NPCs to present multi‑line conversations.
-
-Behavior:
-
--   Dialogue begins when interacting with an NPC
--   Dialogue advances with Enter or Space
--   Dialogue closes automatically after the final line
-
-While dialogue is active:
-
--   Player movement is disabled
--   Map interaction is disabled
--   Map menu cannot open
-
-Systems involved:
-
-DialogueSession DialogueOverlay
-
-Dialogue content is loaded from JSON definitions.
-
-------------------------------------------------------------------------
-
-## Map Menu
-
-Press Escape while on the map to open the map menu.
-
-Menu options:
-
--   Resume
--   Return to Title
-
-Rules:
-
--   Menu opens only while on the map
--   Menu cannot open during dialogue
--   Closing the menu returns control to the map
--   Menu input does not trigger map interactions
-
-The menu is implemented as an overlay system rather than a scene.
-
-------------------------------------------------------------------------
-
 ## Rendering (Debug)
 
 Rendering systems:
 
-MapRenderer PlayerRenderer NpcRenderer DialogueOverlay
+MapRenderer  
+PlayerRenderer  
+NpcRenderer  
+DialogueOverlay
 
 Debug visuals currently render:
 
--   map tiles
--   blocked tiles
--   NPCs
--   player
--   dialogue box
+- map tiles
+- blocked tiles
+- NPCs
+- chests
+- player
+- dialogue box
 
 Rendering contains **no gameplay logic**.
 
@@ -246,16 +331,16 @@ src/JrpgEngine
 
 Key directories:
 
-Core -- Engine coordination
-Definitions -- Data definitions
-Dialogue -- Dialogue runtime + UI
-Interactions -- Map interaction systems
-Maps -- Map runtime + movement
-Menus -- Map menu overlay
-Rendering -- Debug renderers
-Scenes -- Title and map scenes
-State -- Game runtime state
-Systems -- Engine services
+Core -- Engine coordination  
+Definitions -- Data definitions  
+Dialogue -- Dialogue runtime + UI  
+Interactions -- Map interaction systems  
+Maps -- Map runtime + movement  
+Menus -- Map menu overlay  
+Rendering -- Debug renderers  
+Scenes -- Title and map scenes  
+State -- Game runtime state  
+Systems -- Engine services  
 
 Game data is stored outside the project:
 
@@ -277,19 +362,19 @@ The engine is built using **incremental vertical slices**.
 
 Each slice:
 
-1.  adds a playable feature
-2.  integrates with existing systems
-3.  avoids speculative architecture
+1. adds a playable feature
+2. integrates with existing systems
+3. avoids speculative architecture
 
 Completed slices:
 
-Slice 0 -- Bootstrap
-Slice 1 -- Map navigation foundation
-Slice 2 -- Map interaction and dialogue system
+Slice 0 -- Bootstrap  
+Slice 1 -- Map navigation foundation  
+Slice 2 -- Map interaction and dialogue system  
+Slice 3 -- Stateful interactions, flags, and inventory  
 
 Planned next slices:
 
-Slice 3 -- Map events and interactable objects
 Slice 4 -- Battle system foundation
 
 ------------------------------------------------------------------------
