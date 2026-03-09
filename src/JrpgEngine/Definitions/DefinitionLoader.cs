@@ -25,17 +25,23 @@ public static class DefinitionLoader
         var gameConfigPath = Path.Combine(dataRoot, "game", "game_config.json");
         var mapsPath = Path.Combine(dataRoot, "maps");
         var charactersPath = Path.Combine(dataRoot, "characters");
+        var dialoguesPath = Path.Combine(dataRoot, "dialogues");
+        var interactionsPath = Path.Combine(dataRoot, "interactions");
 
         var gameConfig = JsonFile.Load<GameConfig>(gameConfigPath);
         var maps = LoadMapDefinitions(mapsPath);
         var characters = LoadCharacterDefinitions(charactersPath);
+        var dialogues = LoadDialogueDefinitions(dialoguesPath);
+        var interactions = LoadInteractionDefinitions(interactionsPath);
 
         ValidateGameConfig(gameConfig);
         ValidateMaps(maps);
         ValidateCharacters(characters);
-        ValidateCrossReferences(gameConfig, maps, characters);
+        ValidateDialogues(dialogues);
+        ValidateInteractions(interactions);
+        ValidateCrossReferences(gameConfig, maps, characters, dialogues, interactions);
 
-        return new DefinitionDatabase(gameConfig, maps, characters);
+        return new DefinitionDatabase(gameConfig, maps, characters, dialogues, interactions);
     }
 
     private static Dictionary<string, MapDef> LoadMapDefinitions(string mapsPath)
@@ -106,6 +112,74 @@ public static class DefinitionLoader
         return characters;
     }
 
+    private static Dictionary<string, DialogueDef> LoadDialogueDefinitions(string dialoguesPath)
+    {
+        if (!Directory.Exists(dialoguesPath))
+        {
+            throw new DirectoryNotFoundException($"Dialogues folder not found: {dialoguesPath}");
+        }
+
+        var dialogueFiles = Directory.GetFiles(dialoguesPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (dialogueFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No dialogue definition files found in: {dialoguesPath}");
+        }
+
+        var dialogues = new Dictionary<string, DialogueDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in dialogueFiles)
+        {
+            var dialogueDef = JsonFile.Load<DialogueDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(dialogueDef.Id))
+            {
+                throw new InvalidOperationException($"Dialogue definition in '{filePath}' is missing Id.");
+            }
+
+            if (!dialogues.TryAdd(dialogueDef.Id, dialogueDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate dialogue id '{dialogueDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return dialogues;
+    }
+
+    private static Dictionary<string, InteractionDef> LoadInteractionDefinitions(string interactionsPath)
+    {
+        if (!Directory.Exists(interactionsPath))
+        {
+            throw new DirectoryNotFoundException($"Interactions folder not found: {interactionsPath}");
+        }
+
+        var interactionFiles = Directory.GetFiles(interactionsPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (interactionFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No interaction definition files found in: {interactionsPath}");
+        }
+
+        var interactions = new Dictionary<string, InteractionDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in interactionFiles)
+        {
+            var interactionDef = JsonFile.Load<InteractionDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(interactionDef.Id))
+            {
+                throw new InvalidOperationException($"Interaction definition in '{filePath}' is missing Id.");
+            }
+
+            if (!interactions.TryAdd(interactionDef.Id, interactionDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate interaction id '{interactionDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return interactions;
+    }
+
     private static void ValidateGameConfig(GameConfig gameConfig)
     {
         if (string.IsNullOrWhiteSpace(gameConfig.StartingMapId))
@@ -153,6 +227,58 @@ public static class DefinitionLoader
                         $"Map '{mapId}' contains out-of-bounds blocked tile ({blockedTile.X}, {blockedTile.Y}).");
                 }
             }
+
+            var seenObjectIds = new HashSet<string>(StringComparer.Ordinal);
+            var occupiedObjectTiles = new HashSet<(int X, int Y)>();
+
+            foreach (var mapObject in mapDef.Objects)
+            {
+                if (string.IsNullOrWhiteSpace(mapObject.Id))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains an object with missing Id.");
+                }
+
+                if (!seenObjectIds.Add(mapObject.Id))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains duplicate object id '{mapObject.Id}'.");
+                }
+
+                if (string.IsNullOrWhiteSpace(mapObject.Type))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' object '{mapObject.Id}' must have a non-empty Type.");
+                }
+
+                if (mapObject.X < 0 || mapObject.X >= mapDef.Width ||
+                    mapObject.Y < 0 || mapObject.Y >= mapDef.Height)
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' object '{mapObject.Id}' is out of bounds at ({mapObject.X}, {mapObject.Y}).");
+                }
+
+                if (!occupiedObjectTiles.Add((mapObject.X, mapObject.Y)))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains multiple objects on tile ({mapObject.X}, {mapObject.Y}).");
+                }
+
+                foreach (var blockedTile in mapDef.BlockedTiles)
+                {
+                    if (blockedTile.X == mapObject.X && blockedTile.Y == mapObject.Y)
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' object '{mapObject.Id}' is placed on blocked tile ({mapObject.X}, {mapObject.Y}).");
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(mapObject.InteractionId))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' object '{mapObject.Id}' must have a non-empty InteractionId.");
+                }
+            }
         }
     }
 
@@ -168,10 +294,57 @@ public static class DefinitionLoader
         }
     }
 
+    private static void ValidateDialogues(IReadOnlyDictionary<string, DialogueDef> dialogues)
+    {
+        foreach (var (dialogueId, dialogueDef) in dialogues)
+        {
+            if (dialogueDef.Lines.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Dialogue '{dialogueId}' must contain at least one line.");
+            }
+
+            for (var i = 0; i < dialogueDef.Lines.Count; i++)
+            {
+                if (string.IsNullOrWhiteSpace(dialogueDef.Lines[i]))
+                {
+                    throw new InvalidOperationException(
+                        $"Dialogue '{dialogueId}' contains an empty line at index {i}.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateInteractions(IReadOnlyDictionary<string, InteractionDef> interactions)
+    {
+        foreach (var (interactionId, interactionDef) in interactions)
+        {
+            if (string.IsNullOrWhiteSpace(interactionDef.Type))
+            {
+                throw new InvalidOperationException(
+                    $"Interaction '{interactionId}' must have a non-empty Type.");
+            }
+
+            if (!string.Equals(interactionDef.Type, "DialogueNpc", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 2.");
+            }
+
+            if (string.IsNullOrWhiteSpace(interactionDef.DialogueId))
+            {
+                throw new InvalidOperationException(
+                    $"Interaction '{interactionId}' must have a non-empty DialogueId.");
+            }
+        }
+    }
+
     private static void ValidateCrossReferences(
         GameConfig gameConfig,
         IReadOnlyDictionary<string, MapDef> maps,
-        IReadOnlyDictionary<string, CharacterDef> characters)
+        IReadOnlyDictionary<string, CharacterDef> characters,
+        IReadOnlyDictionary<string, DialogueDef> dialogues,
+        IReadOnlyDictionary<string, InteractionDef> interactions)
     {
         if (!maps.TryGetValue(gameConfig.StartingMapId, out var startingMap))
         {
@@ -198,6 +371,18 @@ public static class DefinitionLoader
             }
         }
 
+        foreach (var mapObject in startingMap.Objects)
+        {
+            if (mapObject.X == gameConfig.StartingPlayerTileX &&
+                mapObject.Y == gameConfig.StartingPlayerTileY &&
+                mapObject.BlocksMovement)
+            {
+                throw new InvalidOperationException(
+                    $"Starting player tile ({gameConfig.StartingPlayerTileX}, {gameConfig.StartingPlayerTileY}) " +
+                    $"is occupied by blocking object '{mapObject.Id}' on map '{startingMap.Id}'.");
+            }
+        }
+
         var seenPartyIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var characterId in gameConfig.StartingPartyMemberIds)
@@ -218,6 +403,28 @@ public static class DefinitionLoader
             {
                 throw new InvalidOperationException(
                     $"GameConfig references missing starting party character '{characterId}'.");
+            }
+        }
+
+        foreach (var (mapId, mapDef) in maps)
+        {
+            foreach (var mapObject in mapDef.Objects)
+            {
+                if (!interactions.ContainsKey(mapObject.InteractionId))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' object '{mapObject.Id}' references missing interaction '{mapObject.InteractionId}'.");
+                }
+            }
+        }
+
+        foreach (var (interactionId, interactionDef) in interactions)
+        {
+            if (string.Equals(interactionDef.Type, "DialogueNpc", StringComparison.Ordinal) &&
+                !dialogues.ContainsKey(interactionDef.DialogueId))
+            {
+                throw new InvalidOperationException(
+                    $"Interaction '{interactionId}' references missing dialogue '{interactionDef.DialogueId}'.");
             }
         }
     }

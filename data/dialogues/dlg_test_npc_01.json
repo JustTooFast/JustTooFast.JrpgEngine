@@ -1,0 +1,8 @@
+{
+  "id": "dlg_test_npc_01",
+  "lines": [
+    "Hello there.",
+    "This is the first NPC dialogue test.",
+    "Slice 2 is working."
+  ]
+}

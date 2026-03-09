@@ -3,6 +3,8 @@
 
 using System;
 using JustTooFast.JrpgEngine.Definitions;
+using JustTooFast.JrpgEngine.Dialogue;
+using JustTooFast.JrpgEngine.Interactions;
 using JustTooFast.JrpgEngine.Maps;
 using JustTooFast.JrpgEngine.Menus;
 using JustTooFast.JrpgEngine.Rendering;
@@ -20,11 +22,15 @@ public sealed class MapScene : IScene
     private readonly PlayerMapMover _playerMapMover;
     private readonly MapRenderer _mapRenderer;
     private readonly PlayerRenderer _playerRenderer;
+    private readonly NpcRenderer _npcRenderer;
     private readonly PauseMenuOverlay _pauseMenuOverlay;
+    private readonly DialogueOverlay _dialogueOverlay;
+    private readonly MapInteractionRunner _interactionRunner;
 
     private KeyboardState _previousKeyboardState;
     private FacingDirection? _heldMoveDirection;
     private double _nextHeldMoveAllowedTimeMs;
+    private DialogueSession? _activeDialogue;
 
     private const double HeldMoveRepeatDelayMs = 140.0;
     private const double HeldBlockedRepeatDelayMs = 180.0;
@@ -35,17 +41,23 @@ public sealed class MapScene : IScene
         MapCollisionService mapCollisionService,
         MapRenderer mapRenderer,
         PlayerRenderer playerRenderer,
-        PauseMenuOverlay pauseMenuOverlay)
+        NpcRenderer npcRenderer,
+        PauseMenuOverlay pauseMenuOverlay,
+        DialogueOverlay dialogueOverlay)
     {
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         GameState = gameState ?? throw new ArgumentNullException(nameof(gameState));
         _mapCollisionService = mapCollisionService ?? throw new ArgumentNullException(nameof(mapCollisionService));
         _mapRenderer = mapRenderer ?? throw new ArgumentNullException(nameof(mapRenderer));
         _playerRenderer = playerRenderer ?? throw new ArgumentNullException(nameof(playerRenderer));
+        _npcRenderer = npcRenderer ?? throw new ArgumentNullException(nameof(npcRenderer));
         _pauseMenuOverlay = pauseMenuOverlay ?? throw new ArgumentNullException(nameof(pauseMenuOverlay));
+        _dialogueOverlay = dialogueOverlay ?? throw new ArgumentNullException(nameof(dialogueOverlay));
 
         RuntimeMap = new MapRuntime(GetCurrentMapDef());
         _playerMapMover = new PlayerMapMover(_mapCollisionService);
+        _interactionRunner = new MapInteractionRunner(_definitions);
+
         _playerMapMover.InitializeFromGameState(GameState);
     }
 
@@ -70,6 +82,7 @@ public sealed class MapScene : IScene
         _previousKeyboardState = Keyboard.GetState();
         _heldMoveDirection = null;
         _nextHeldMoveAllowedTimeMs = 0.0;
+        _activeDialogue = null;
         RequestReturnToTitle = false;
         _pauseMenuOverlay.Reset();
         GameState.IsPaused = false;
@@ -86,12 +99,29 @@ public sealed class MapScene : IScene
             throw new ArgumentNullException(nameof(gameTime));
         }
 
+        var keyboardState = Keyboard.GetState();
+
+        if (_activeDialogue is not null)
+        {
+            UpdateDialogue(keyboardState);
+            return;
+        }
+
         var pauseResult = _pauseMenuOverlay.Update(gameTime);
         GameState.IsPaused = _pauseMenuOverlay.IsOpen;
 
         if (pauseResult == PauseMenuResult.ReturnToTitle)
         {
             RequestReturnToTitle = true;
+            _previousKeyboardState = keyboardState;
+            return;
+        }
+
+        if (pauseResult == PauseMenuResult.Resumed)
+        {
+            _heldMoveDirection = null;
+            _nextHeldMoveAllowedTimeMs = 0.0;
+            _previousKeyboardState = keyboardState;
             return;
         }
 
@@ -99,18 +129,24 @@ public sealed class MapScene : IScene
         {
             _heldMoveDirection = null;
             _nextHeldMoveAllowedTimeMs = 0.0;
-            _previousKeyboardState = Keyboard.GetState();
+            _previousKeyboardState = keyboardState;
             return;
         }
 
-        var keyboardState = Keyboard.GetState();
-
-        if (!_playerMapMover.IsMoving)
+        if (!_playerMapMover.IsMoving && WasInteractJustPressed(keyboardState))
         {
-            HandleMovementInput(gameTime, keyboardState);
+            TryStartFrontTileInteraction();
         }
 
-        _playerMapMover.Update(gameTime, GameState, RuntimeMap.Definition);
+        if (_activeDialogue is null)
+        {
+            if (!_playerMapMover.IsMoving)
+            {
+                HandleMovementInput(gameTime, keyboardState);
+            }
+
+            _playerMapMover.Update(gameTime, GameState, RuntimeMap.Definition);
+        }
 
         _previousKeyboardState = keyboardState;
     }
@@ -118,14 +154,81 @@ public sealed class MapScene : IScene
     public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
     {
         _mapRenderer.Draw(spriteBatch, RuntimeMap);
+        _npcRenderer.Draw(spriteBatch, RuntimeMap);
 
         var playerWorldPosition = _playerMapMover.GetVisualWorldPosition(GameState, RuntimeMap.TileSize);
         _playerRenderer.Draw(spriteBatch, playerWorldPosition, RuntimeMap.TileSize);
+
+        if (_activeDialogue is not null)
+        {
+            _dialogueOverlay.Draw(spriteBatch, spriteBatch.GraphicsDevice.Viewport, _activeDialogue);
+            return;
+        }
 
         if (_pauseMenuOverlay.IsOpen)
         {
             _pauseMenuOverlay.Draw(spriteBatch, spriteBatch.GraphicsDevice.Viewport);
         }
+    }
+
+    private void UpdateDialogue(KeyboardState keyboardState)
+    {
+        if (_activeDialogue is null)
+        {
+            throw new InvalidOperationException("Dialogue update requested with no active dialogue.");
+        }
+
+        _heldMoveDirection = null;
+        _nextHeldMoveAllowedTimeMs = 0.0;
+        GameState.IsPaused = false;
+
+        if (WasConfirmJustPressed(keyboardState))
+        {
+            var finished = _activeDialogue.Advance();
+            if (finished)
+            {
+                _activeDialogue = null;
+            }
+        }
+
+        _previousKeyboardState = keyboardState;
+    }
+
+    private void TryStartFrontTileInteraction()
+    {
+        var frontObject = TryGetFrontObject();
+        if (frontObject is null)
+        {
+            return;
+        }
+
+        var result = _interactionRunner.TryStart(frontObject.InteractionId);
+        if (!result.Started)
+        {
+            return;
+        }
+
+        if (result.DialogueSession is not null)
+        {
+            _activeDialogue = result.DialogueSession;
+            _heldMoveDirection = null;
+            _nextHeldMoveAllowedTimeMs = 0.0;
+        }
+    }
+
+    private MapObjectDef? TryGetFrontObject()
+    {
+        var frontTile = GetPlayerTile() + GetDirectionOffset(GameState.Facing);
+
+        foreach (var mapObject in RuntimeMap.Definition.Objects)
+        {
+            if (mapObject.X == frontTile.X && mapObject.Y == frontTile.Y)
+            {
+                return mapObject;
+            }
+        }
+
+        return null;
     }
 
     private void HandleMovementInput(GameTime gameTime, KeyboardState keyboardState)
@@ -214,6 +317,16 @@ public sealed class MapScene : IScene
             FacingDirection.Right => IsAnyKeyJustPressed(currentKeyboardState, Keys.Right, Keys.D),
             _ => false
         };
+    }
+
+    private bool WasInteractJustPressed(KeyboardState currentKeyboardState)
+    {
+        return IsAnyKeyJustPressed(currentKeyboardState, Keys.Space, Keys.Enter);
+    }
+
+    private bool WasConfirmJustPressed(KeyboardState currentKeyboardState)
+    {
+        return IsAnyKeyJustPressed(currentKeyboardState, Keys.Space, Keys.Enter);
     }
 
     private bool IsAnyKeyJustPressed(KeyboardState currentKeyboardState, Keys primary, Keys alternate)

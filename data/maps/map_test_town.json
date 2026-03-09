@@ -50,5 +50,15 @@
     { "x": 7, "y": 9 },
     { "x": 8, "y": 9 },
     { "x": 9, "y": 9 }
+  ],
+  "objects": [
+    {
+      "id": "npc_test_01",
+      "type": "Npc",
+      "x": 3,
+      "y": 2,
+      "blocksMovement": true,
+      "interactionId": "int_test_npc_01"
+    }
   ]
 }

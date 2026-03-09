@@ -34,6 +34,8 @@
   <ItemGroup>
     <Folder Include="Core/" />
     <Folder Include="Definitions/" />
+    <Folder Include="Dialogue/" />
+    <Folder Include="Interactions/" />
     <Folder Include="Maps/" />
     <Folder Include="Menus/" />
     <Folder Include="Rendering/" />

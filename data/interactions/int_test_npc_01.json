@@ -1,0 +1,5 @@
+{
+  "id": "int_test_npc_01",
+  "type": "DialogueNpc",
+  "dialogueId": "dlg_test_npc_01"
+}

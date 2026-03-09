@@ -16,6 +16,8 @@ public sealed class MapDef
     public int TileSize { get; set; } = 32;
 
     public List<MapBlockedTileDef> BlockedTiles { get; set; } = new();
+
+    public List<MapObjectDef> Objects { get; set; } = new();
 }
 
 public sealed class MapBlockedTileDef
@@ -23,4 +25,19 @@ public sealed class MapBlockedTileDef
     public int X { get; set; }
 
     public int Y { get; set; }
+}
+
+public sealed class MapObjectDef
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Type { get; set; } = string.Empty;
+
+    public int X { get; set; }
+
+    public int Y { get; set; }
+
+    public bool BlocksMovement { get; set; } = true;
+
+    public string InteractionId { get; set; } = string.Empty;
 }

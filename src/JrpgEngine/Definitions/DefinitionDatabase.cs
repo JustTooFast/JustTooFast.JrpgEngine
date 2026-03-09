@@ -11,11 +11,15 @@ public sealed class DefinitionDatabase
     public DefinitionDatabase(
         GameConfig gameConfig,
         Dictionary<string, MapDef> maps,
-        Dictionary<string, CharacterDef> characters)
+        Dictionary<string, CharacterDef> characters,
+        Dictionary<string, DialogueDef> dialogues,
+        Dictionary<string, InteractionDef> interactions)
     {
         GameConfig = gameConfig ?? throw new ArgumentNullException(nameof(gameConfig));
         Maps = maps ?? throw new ArgumentNullException(nameof(maps));
         Characters = characters ?? throw new ArgumentNullException(nameof(characters));
+        Dialogues = dialogues ?? throw new ArgumentNullException(nameof(dialogues));
+        Interactions = interactions ?? throw new ArgumentNullException(nameof(interactions));
     }
 
     public GameConfig GameConfig { get; }
@@ -23,4 +27,8 @@ public sealed class DefinitionDatabase
     public IReadOnlyDictionary<string, MapDef> Maps { get; }
 
     public IReadOnlyDictionary<string, CharacterDef> Characters { get; }
+
+    public IReadOnlyDictionary<string, DialogueDef> Dialogues { get; }
+
+    public IReadOnlyDictionary<string, InteractionDef> Interactions { get; }
 }
