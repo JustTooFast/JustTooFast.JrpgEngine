@@ -1,4 +1,3 @@
-
 # JustTooFast.JrpgEngine
 
 A **data-driven 2D JRPG engine** built in C# using **MonoGame**.
@@ -7,11 +6,11 @@ The engine is developed incrementally using **working vertical slices**.
 Each slice adds playable functionality while maintaining strict
 architectural separation between:
 
-- definitions (data)
-- runtime state
-- systems
-- scenes
-- rendering
+-   definitions (data)
+-   runtime state
+-   systems
+-   scenes
+-   rendering
 
 This approach keeps the engine stable while gameplay systems are added.
 
@@ -19,29 +18,32 @@ This approach keeps the engine stable while gameplay systems are added.
 
 # Current Status
 
-**Slice 3: Stateful Interactions + Inventory (Complete)**
+**Slice 4: Map Transitions + Doors + Conditional Gates (Complete)**
 
 The engine can currently:
 
-- Load game definitions from external JSON data
-- Start a new game from a title screen
-- Load a test map
-- Move the party leader on the map
-- Block movement using tile collision
-- Interact with NPCs on the map
-- Display dialogue conversations
-- Pause the game using a map menu
-- Use story flags to track world state
-- Change dialogue based on flag conditions
-- Open treasure chests
-- Add items to a player inventory
+-   Load game definitions from external JSON data
+-   Start a new game from a title screen
+-   Load multiple maps
+-   Move the party leader on the map
+-   Block movement using tile collision
+-   Interact with NPCs on the map
+-   Display dialogue conversations
+-   Pause the game using a map menu
+-   Use story flags to track world state
+-   Change dialogue based on flag conditions
+-   Open treasure chests and add items to inventory
+-   Unlock and open doors using key flags
+-   Pass through conditional gates once flags are met
+-   Transition between maps using exit objects
 
 Movement remains **tile-based for gameplay** but **smoothly interpolated
 visually**.
 
-Slice 3 expands the gameplay interaction loop:
+Slice 4 expands the gameplay interaction loop:
 
-player → interaction → dialogue → results → world state changes
+player → interaction → dialogue → results → world state changes → map
+transitions
 
 ------------------------------------------------------------------------
 
@@ -85,20 +87,27 @@ Maps are defined as tile grids.
 
 Example map definition fields:
 
-- id
-- width
-- height
-- tileSize
-- blockedTiles
-- objects
+-   id
+-   width
+-   height
+-   tileSize
+-   blockedTiles
+-   objects
+-   spawns
 
 Blocked tiles prevent movement.
 
-Map objects allow placing interactive entities such as NPCs or chests.
+Map objects allow placing interactive entities such as:
+
+-   NPCs
+-   treasure chests
+-   locked doors
+-   conditional gates
+-   map exits
 
 The runtime representation is handled by:
 
-MapRuntime  
+MapRuntime
 MapCollisionService
 
 NPC tiles are treated as blocked tiles so players must stand adjacent to
@@ -110,16 +119,16 @@ interact.
 
 Movement rules:
 
-- 4 directions only
-- One tile at a time
-- No diagonal movement
-- Movement blocked by collision tiles or objects
-- Facing direction updates even if movement fails
-- Held input repeats movement with a delay
+-   4 directions only
+-   One tile at a time
+-   No diagonal movement
+-   Movement blocked by collision tiles or objects
+-   Facing direction updates even if movement fails
+-   Held input repeats movement with a delay
 
 Gameplay position is tile-based:
 
-PlayerTileX  
+PlayerTileX
 PlayerTileY
 
 Visual movement is interpolated between tiles using:
@@ -129,37 +138,36 @@ PlayerMapMover
 Tile movement commit points allow later systems to hook into movement
 events such as:
 
-- encounter steps
-- poison damage
-- environmental hazards
-- scripted triggers
+-   encounter steps
+-   poison damage
+-   environmental hazards
+-   scripted triggers
 
 ------------------------------------------------------------------------
 
 ## Map Interaction System
 
-Interactions use **front‑tile interaction**.
+Interactions use **front‑tile interaction**, with a small exception:
+
+Non‑blocking exit tiles may also be activated while standing on them.
 
 Interaction rules:
 
-- Only the tile directly in front of the player is checked
-- No diagonal interaction
-- Only one object may be interacted with at a time
-- Interaction is triggered using the **Interact key**
+-   Only the tile directly in front of the player is checked
+-   No diagonal interaction
+-   Only one object may be interacted with at a time
+-   Interaction is triggered using the **Interact key**
 
 Objects reference interaction definitions which determine the behavior
 to run.
 
-Example interaction types:
+Interaction types implemented:
 
-- NPC dialogue
-- treasure chests
-- map transitions
-- scripted events
-
-Slice 2 implemented NPC dialogue.
-
-Slice 3 introduces **treasure chests and stateful interactions**.
+-   NPC dialogue
+-   treasure chests
+-   locked doors
+-   flag gates
+-   map exits
 
 ------------------------------------------------------------------------
 
@@ -169,31 +177,29 @@ The dialogue system allows NPCs to present multi‑line conversations.
 
 Behavior:
 
-- Dialogue begins when interacting with an NPC
-- Dialogue advances with Enter or Space
-- Dialogue closes automatically after the final line
+-   Dialogue begins when interacting with an NPC
+-   Dialogue advances with Enter or Space
+-   Dialogue closes automatically after the final line
 
 While dialogue is active:
 
-- Player movement is disabled
-- Map interaction is disabled
-- Map menu cannot open
+-   Player movement is disabled
+-   Map interaction is disabled
+-   Map menu cannot open
 
 Systems involved:
 
-DialogueSession  
+DialogueSession
 DialogueOverlay
 
 ### Dialogue Variants
-
-Slice 3 introduces **conditional dialogue variants**.
 
 Dialogue can change depending on story flags.
 
 Example conditions:
 
-- `hasFlag`
-- `lacksFlag`
+-   `hasFlag`
+-   `lacksFlag`
 
 This allows NPC dialogue to change after the player performs an action
 or after a conversation has already occurred.
@@ -204,8 +210,8 @@ Dialogue variants can apply results when the conversation finishes.
 
 Supported result types:
 
-- `SetFlag`
-- `GiveItem`
+-   `SetFlag`
+-   `GiveItem`
 
 Results are executed **after the final dialogue line completes**.
 
@@ -213,17 +219,13 @@ Results are executed **after the final dialogue line completes**.
 
 ## Story Flags
 
-Slice 3 introduces a **story flag system**.
+Story flags represent persistent world state such as:
 
-Flags represent persistent world state such as:
-
-- NPC conversations completed
-- treasure chests opened
-- quest progress
-- story events
-
-Flags allow the engine to support conditional dialogue and one‑time
-interactions.
+-   NPC conversations completed
+-   treasure chests opened
+-   doors unlocked
+-   quest progress
+-   story events
 
 Runtime system:
 
@@ -233,20 +235,18 @@ StoryFlagState
 
 ## Inventory System
 
-Slice 3 introduces a minimal **inventory system**.
+The inventory system supports:
 
-Capabilities:
-
-- store items
-- add items from interactions
-- check if an item exists
+-   storing items
+-   adding items from interactions
+-   checking if items exist
 
 This slice intentionally avoids:
 
-- equipment
-- stack limits
-- item usage
-- crafting
+-   equipment
+-   stack limits
+-   item usage
+-   crafting
 
 These systems will be added in later slices.
 
@@ -256,36 +256,53 @@ InventoryState
 
 ------------------------------------------------------------------------
 
-## Treasure Chests
+## Locked Doors
 
-Treasure chests are implemented as **normal interaction objects** placed
-on maps.
+Locked doors now have a **two‑step state model**.
 
-Chest behavior:
+Door behavior:
 
-1. Player interacts with the chest
-2. Dialogue is shown describing the item
-3. Item is added to inventory
-4. A flag marks the chest as opened
-5. Future interactions show alternate dialogue
+1.  Player interacts with door
+2.  If required flag (key) is missing → locked dialogue
+3.  If required flag is present → unlock dialogue plays
+4.  Door sets its own open flag
+5.  Door tile becomes passable
 
-Chests are defined entirely through interaction definitions rather than
-special map logic.
+This separates:
+
+-   *having the key*
+-   *door being opened*
 
 ------------------------------------------------------------------------
 
-## NPC Rendering
+## Flag Gates
 
-NPCs placed in map definitions are rendered on the map using a simple
-debug renderer.
+Flag gates are conditional blockers.
 
-Renderer:
+Behavior:
 
-NpcRenderer
+-   Block movement until a required flag is set
+-   Once the flag is set, the gate becomes passable immediately
 
-NPCs currently render as debug colored tiles similar to the player.
+Unlike locked doors, no interaction is required once the condition is
+met.
 
-Rendering is intentionally separated from gameplay logic.
+------------------------------------------------------------------------
+
+## Map Transitions
+
+Slice 4 introduces **multi‑map support**.
+
+Map exits allow transitions between maps.
+
+Exit behavior:
+
+-   stepping onto an exit tile or interacting with it
+-   engine loads destination map
+-   player appears at a defined spawn location
+-   facing direction is restored from the spawn definition
+
+Maps define spawn points used as entry positions.
 
 ------------------------------------------------------------------------
 
@@ -293,19 +310,21 @@ Rendering is intentionally separated from gameplay logic.
 
 Rendering systems:
 
-MapRenderer  
-PlayerRenderer  
-NpcRenderer  
+MapRenderer
+PlayerRenderer
+NpcRenderer
 DialogueOverlay
 
 Debug visuals currently render:
 
-- map tiles
-- blocked tiles
-- NPCs
-- chests
-- player
-- dialogue box
+-   map tiles
+-   blocked tiles
+-   NPCs
+-   chests
+-   doors / gates
+-   map exits
+-   player
+-   dialogue box
 
 Rendering contains **no gameplay logic**.
 
@@ -331,16 +350,16 @@ src/JrpgEngine
 
 Key directories:
 
-Core -- Engine coordination  
-Definitions -- Data definitions  
-Dialogue -- Dialogue runtime + UI  
-Interactions -- Map interaction systems  
-Maps -- Map runtime + movement  
-Menus -- Map menu overlay  
-Rendering -- Debug renderers  
-Scenes -- Title and map scenes  
-State -- Game runtime state  
-Systems -- Engine services  
+Core -- Engine coordination
+Definitions -- Data definitions
+Dialogue -- Dialogue runtime + UI
+Interactions -- Map interaction systems
+Maps -- Map runtime + movement
+Menus -- Map menu overlay
+Rendering -- Debug renderers
+Scenes -- Title and map scenes
+State -- Game runtime state
+Systems -- Engine services
 
 Game data is stored outside the project:
 
@@ -362,20 +381,21 @@ The engine is built using **incremental vertical slices**.
 
 Each slice:
 
-1. adds a playable feature
-2. integrates with existing systems
-3. avoids speculative architecture
+1.  adds a playable feature
+2.  integrates with existing systems
+3.  avoids speculative architecture
 
 Completed slices:
 
-Slice 0 -- Bootstrap  
-Slice 1 -- Map navigation foundation  
-Slice 2 -- Map interaction and dialogue system  
-Slice 3 -- Stateful interactions, flags, and inventory  
+Slice 0 -- Bootstrap
+Slice 1 -- Map navigation foundation
+Slice 2 -- Map interaction and dialogue system
+Slice 3 -- Stateful interactions, flags, and inventory
+Slice 4 -- Map transitions, doors, and conditional gates
 
 Planned next slices:
 
-Slice 4 -- Battle system foundation
+Slice 5 -- Battle system foundation
 
 ------------------------------------------------------------------------
 

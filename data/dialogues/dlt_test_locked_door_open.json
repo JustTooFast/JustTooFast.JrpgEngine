@@ -1,0 +1,11 @@
+{
+  "id": "dlg_test_locked_door_open",
+  "variants": [
+    {
+      "lines": [
+        "You unlock and open the door."
+      ],
+      "results": []
+    }
+  ]
+}

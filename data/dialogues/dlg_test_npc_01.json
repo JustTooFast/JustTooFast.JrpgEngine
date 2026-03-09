@@ -8,7 +8,7 @@
       "lines": [
         "Hello there.",
         "This is the first NPC dialogue test.",
-        "Now I will set a flag."
+        "Here's the key to that door."
       ],
       "results": [
         {
@@ -23,7 +23,7 @@
       },
       "lines": [
         "Oh, it's you again.",
-        "The flag was already set."
+        "I already gave you the key."
       ],
       "results": []
     }

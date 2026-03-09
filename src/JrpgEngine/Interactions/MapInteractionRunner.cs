@@ -37,8 +37,11 @@ public sealed class MapInteractionRunner
         {
             "DialogueNpc" => StartDialogue(interaction.DialogueId),
             "Chest" => StartChest(interaction),
+            "LockedDoor" => StartLockedDoor(interaction),
+            "FlagGate" => StartFlagGate(interaction),
+            "MapExit" => StartMapExit(interaction),
             _ => throw new InvalidOperationException(
-                $"Unsupported interaction type '{interaction.Type}' for Slice 3.")
+                $"Unsupported interaction type '{interaction.Type}' for Slice 4.")
         };
     }
 
@@ -133,6 +136,115 @@ public sealed class MapInteractionRunner
         };
 
         return InteractionStartResult.StartDialogue(new DialogueSession(baseDialogue, chestVariant));
+    }
+
+    private InteractionStartResult StartLockedDoor(InteractionDef interaction)
+    {
+        if (string.IsNullOrWhiteSpace(interaction.RequiredFlagId))
+        {
+            throw new InvalidOperationException(
+                $"LockedDoor interaction '{interaction.Id}' requires RequiredFlagId.");
+        }
+
+        if (string.IsNullOrWhiteSpace(interaction.OpenFlagId))
+        {
+            throw new InvalidOperationException(
+                $"LockedDoor interaction '{interaction.Id}' requires OpenFlagId.");
+        }
+
+        var isOpened = _gameState.StoryFlags.IsSet(interaction.OpenFlagId);
+        if (isOpened)
+        {
+            return InteractionStartResult.None();
+        }
+
+        var hasRequiredFlag = _gameState.StoryFlags.IsSet(interaction.RequiredFlagId);
+        if (!hasRequiredFlag)
+        {
+            if (string.IsNullOrWhiteSpace(interaction.DialogueId))
+            {
+                return InteractionStartResult.None();
+            }
+
+            return StartDialogue(interaction.DialogueId);
+        }
+
+        if (string.IsNullOrWhiteSpace(interaction.OpenedDialogueId))
+        {
+            throw new InvalidOperationException(
+                $"LockedDoor interaction '{interaction.Id}' requires OpenedDialogueId when the door is unlocked by interaction.");
+        }
+
+        if (!_definitions.Dialogues.TryGetValue(interaction.OpenedDialogueId, out var openDialogue))
+        {
+            throw new InvalidOperationException(
+                $"Dialogue '{interaction.OpenedDialogueId}' was not found.");
+        }
+
+        var openVariant = ResolveVariant(openDialogue);
+
+        var unlockedVariant = new DialogueVariantDef
+        {
+            Condition = null,
+            Lines = new List<string>(openVariant.Lines),
+            Results = new List<InteractionResultDef>(openVariant.Results)
+            {
+                new InteractionResultDef
+                {
+                    Type = "SetFlag",
+                    FlagId = interaction.OpenFlagId
+                }
+            }
+        };
+
+        return InteractionStartResult.StartDialogue(new DialogueSession(openDialogue, unlockedVariant));
+    }
+
+    private InteractionStartResult StartFlagGate(InteractionDef interaction)
+    {
+        if (string.IsNullOrWhiteSpace(interaction.RequiredFlagId))
+        {
+            throw new InvalidOperationException(
+                $"FlagGate interaction '{interaction.Id}' requires RequiredFlagId.");
+        }
+
+        var isOpen = _gameState.StoryFlags.IsSet(interaction.RequiredFlagId);
+
+        if (isOpen)
+        {
+            if (string.IsNullOrWhiteSpace(interaction.OpenedDialogueId))
+            {
+                return InteractionStartResult.None();
+            }
+
+            return StartDialogue(interaction.OpenedDialogueId);
+        }
+
+        if (string.IsNullOrWhiteSpace(interaction.DialogueId))
+        {
+            return InteractionStartResult.None();
+        }
+
+        return StartDialogue(interaction.DialogueId);
+    }
+
+    private InteractionStartResult StartMapExit(InteractionDef interaction)
+    {
+        if (string.IsNullOrWhiteSpace(interaction.DestinationMapId))
+        {
+            throw new InvalidOperationException(
+                $"MapExit interaction '{interaction.Id}' requires DestinationMapId.");
+        }
+
+        if (string.IsNullOrWhiteSpace(interaction.DestinationSpawnId))
+        {
+            throw new InvalidOperationException(
+                $"MapExit interaction '{interaction.Id}' requires DestinationSpawnId.");
+        }
+
+        return InteractionStartResult.StartMapTransition(
+            interaction.DestinationMapId,
+            interaction.DestinationSpawnId);
     }
 
     private DialogueVariantDef ResolveVariant(DialogueDef dialogue)

@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace JustTooFast.JrpgEngine.Utils;
 
@@ -11,38 +12,45 @@ public static class JsonFile
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        Converters =
+        {
+            new JsonStringEnumConverter()
+        }
     };
 
     public static T Load<T>(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
-            throw new ArgumentException("JSON file path cannot be null or empty.", nameof(filePath));
+            throw new ArgumentException("File path cannot be null or empty.", nameof(filePath));
         }
 
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"JSON file not found: {filePath}", filePath);
+            throw new FileNotFoundException("JSON file not found.", filePath);
         }
 
         try
         {
             var json = File.ReadAllText(filePath);
-            var result = JsonSerializer.Deserialize<T>(json, SerializerOptions);
+            var value = JsonSerializer.Deserialize<T>(json, SerializerOptions);
 
-            if (result is null)
+            if (value is null)
             {
                 throw new InvalidOperationException(
-                    $"Deserialization returned null for type {typeof(T).Name} from file '{filePath}'.");
+                    $"JSON file '{filePath}' deserialized to null.");
             }
 
-            return result;
+            return value;
         }
         catch (JsonException ex)
         {
             throw new InvalidOperationException(
-                $"Failed to parse JSON file '{filePath}': {ex.Message}", ex);
+                $"Failed to parse JSON file '{filePath}': {ex.Message}",
+                ex);
         }
     }
 }

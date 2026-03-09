@@ -18,4 +18,12 @@ public sealed class InteractionDef
     public int Amount { get; set; } = 1;
 
     public string OpenFlagId { get; set; } = string.Empty;
+
+    public string RequiredFlagId { get; set; } = string.Empty;
+
+    public string DestinationMapId { get; set; } = string.Empty;
+
+    public string DestinationSpawnId { get; set; } = string.Empty;
+
+    public bool TriggerOnStep { get; set; }
 }

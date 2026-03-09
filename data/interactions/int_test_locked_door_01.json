@@ -1,0 +1,8 @@
+{
+  "id": "int_test_locked_door_01",
+  "type": "LockedDoor",
+  "dialogueId": "dlg_test_locked_door_locked",
+  "openedDialogueId": "dlg_test_locked_door_open",
+  "requiredFlagId": "flag_spoke_to_test_npc",
+  "openFlagId": "flag_opened_test_door_01"
+}
