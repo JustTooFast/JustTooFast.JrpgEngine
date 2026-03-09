@@ -1,0 +1,9 @@
+{
+  "startingMapId": "map_test_town",
+  "startingPlayerTileX": 2,
+  "startingPlayerTileY": 2,
+  "startingFacing": "Down",
+  "startingPartyMemberIds": [
+    "char_hero"
+  ]
+}

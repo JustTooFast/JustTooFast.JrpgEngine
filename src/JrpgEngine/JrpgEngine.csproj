@@ -31,4 +31,15 @@
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.*" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Core/" />
+    <Folder Include="Definitions/" />
+    <Folder Include="Maps/" />
+    <Folder Include="Menus/" />
+    <Folder Include="Rendering/" />
+    <Folder Include="Scenes/" />
+    <Folder Include="State/" />
+    <Folder Include="Systems/" />
+    <Folder Include="Utils/" />
+  </ItemGroup>
 </Project>
