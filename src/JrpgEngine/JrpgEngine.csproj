@@ -6,6 +6,8 @@
     <PublishReadyToRun>false</PublishReadyToRun>
     <TieredCompilation>false</TieredCompilation>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>14.0</LangVersion>
     <AssemblyName>JustTooFast.JrpgEngine</AssemblyName>
     <RootNamespace>JustTooFast.JrpgEngine</RootNamespace>
   </PropertyGroup>
