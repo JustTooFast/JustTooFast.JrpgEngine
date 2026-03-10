@@ -16,6 +16,8 @@ public sealed class MapDef
 
     public int TileSize { get; set; } = 32;
 
+    public string? VisualAssetId { get; set; }
+
     public List<MapBlockedTileDef> BlockedTiles { get; set; } = new();
 
     public List<MapSpawnDef> Spawns { get; set; } = new();
@@ -70,7 +72,7 @@ public sealed class MapStateVariantDef
 
     public bool ActiveWhenSet { get; set; } = true;
 
-    public string? VisualStyleId { get; set; }
+    public string? VisualAssetOverrideId { get; set; }
 
     public List<string> EnableObjectIds { get; set; } = new();
 

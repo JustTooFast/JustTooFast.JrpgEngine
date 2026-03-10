@@ -32,12 +32,11 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Content/Tiles/" />
     <Folder Include="Core/" />
     <Folder Include="Dialogue/" />
     <Folder Include="Interactions/" />
-    <Folder Include="Maps/" />
     <Folder Include="Menus/" />
-    <Folder Include="Rendering/" />
     <Folder Include="Scenes/" />
     <Folder Include="State/" />
     <Folder Include="Systems/" />

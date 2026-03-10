@@ -26,14 +26,14 @@ public sealed class MapStateResolver
         var resolvedObjects = ResolveVisibleObjects(sourceMap, storyFlags, activeVariant);
         var effectiveMapDef = CloneMapWithResolvedObjects(sourceMap, resolvedObjects);
 
-        var visualStyleId = string.IsNullOrWhiteSpace(activeVariant?.VisualStyleId)
-            ? null
-            : activeVariant.VisualStyleId;
+        var visualAssetId = string.IsNullOrWhiteSpace(activeVariant?.VisualAssetOverrideId)
+            ? sourceMap.VisualAssetId
+            : activeVariant.VisualAssetOverrideId;
 
         return new ResolvedMapState(
             effectiveMapDef,
             activeVariant?.Id,
-            visualStyleId);
+            visualAssetId);
     }
 
     private static MapStateVariantDef? ResolveActiveVariant(MapDef mapDef, StoryFlagState storyFlags)
@@ -132,6 +132,7 @@ public sealed class MapStateResolver
             Width = sourceMap.Width,
             Height = sourceMap.Height,
             TileSize = sourceMap.TileSize,
+            VisualAssetId = sourceMap.VisualAssetId,
             BlockedTiles = CloneBlockedTiles(sourceMap.BlockedTiles),
             Spawns = CloneSpawns(sourceMap.Spawns),
             Objects = resolvedObjects,

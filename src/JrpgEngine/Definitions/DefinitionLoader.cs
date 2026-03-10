@@ -240,6 +240,11 @@ public static class DefinitionLoader
     {
         foreach (var (mapId, mapDef) in maps)
         {
+            if (string.IsNullOrWhiteSpace(mapDef.VisualAssetId))
+            {
+                throw new InvalidOperationException($"Map '{mapId}' must define a non-empty VisualAssetId.");
+            }
+
             if (mapDef.Width <= 0)
             {
                 throw new InvalidOperationException($"Map '{mapId}' must have Width > 0.");

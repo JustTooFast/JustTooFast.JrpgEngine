@@ -16,9 +16,162 @@ This approach keeps the engine stable while gameplay systems are added.
 
 ------------------------------------------------------------------------
 
+# Design Philosophy
+
+This engine is designed around a few core principles intended to keep
+JRPG gameplay systems predictable, maintainable, and easy to extend.
+
+### Data-Driven Story Content
+
+Story and gameplay content are defined through external data rather
+than engine code.
+
+Maps, interactions, dialogue, and items are loaded from JSON files
+located in the `/data` directory.
+
+This allows game content to be created without modifying engine logic.
+
+### Explicit Gameplay Systems
+
+Gameplay rules live inside engine systems rather than in scripting
+languages.
+
+This makes behavior easier to reason about and avoids hidden logic that
+can emerge in script-heavy engines.
+
+### Deterministic World State
+
+The game world is rebuilt from:
+
+- definitions
+- runtime state
+- story flags
+
+This ensures that map state, object visibility, and interactions always
+produce consistent results.
+
+### Rendering Is Separate From Gameplay
+
+Rendering components are treated as **views**.
+
+They read runtime state and draw the world but contain **no gameplay
+logic**.
+
+This allows presentation to evolve independently from gameplay systems.
+
+### Incremental Vertical Slices
+
+The engine is developed through **working vertical slices**.
+
+Each slice:
+
+- compiles
+- runs
+- can be tested in-game
+- integrates with existing systems
+- avoids speculative architecture
+
+This approach keeps the engine playable throughout development and
+prevents unfinished systems from accumulating.
+
+------------------------------------------------------------------------
+
+# Engine Architecture Overview
+
+The engine is organized into a small number of explicit layers.
+
+Definitions → Runtime State → Systems → Scenes → Rendering
+
+### Definitions
+
+Definitions are immutable data loaded from external JSON files.
+
+Examples include:
+
+- maps
+- interactions
+- dialogues
+- items
+- characters
+- game configuration
+
+Definitions describe what exists in the game, but do not contain runtime
+behavior.
+
+### Runtime State
+
+Runtime state stores the current play session.
+
+Examples include:
+
+- current map
+- player position
+- facing direction
+- story flags
+- inventory
+- active transitions
+
+Runtime state changes as the player plays the game.
+
+### Systems
+
+Systems contain gameplay rules and state transition logic.
+
+Examples include:
+
+- movement
+- collision checks
+- interaction execution
+- dialogue result application
+- map state resolution
+
+Systems read definitions and runtime state, then apply gameplay rules in
+a deterministic way.
+
+### Scenes
+
+Scenes coordinate gameplay flow and input handling.
+
+Examples include:
+
+- TitleScene
+- MapScene
+
+Scenes decide which systems run, when updates occur, and which view
+components should draw.
+
+### Rendering
+
+Rendering components draw the current runtime state.
+
+Examples include:
+
+- DebugMapRenderer
+- RealMapRenderer
+- MapObjectRenderer
+- PlayerRenderer
+- DialogueOverlay
+
+Rendering is presentation-only and contains no gameplay logic.
+
+### Layer Responsibility
+
+A useful rule of thumb is:
+
+- **Definitions** describe the world
+- **Runtime state** stores the current world state
+- **Systems** apply gameplay rules
+- **Scenes** coordinate update and draw flow
+- **Rendering** displays the result
+
+This separation keeps gameplay logic explicit and allows presentation to
+change without affecting core game behavior.
+
+------------------------------------------------------------------------
+
 # Current Status
 
-**Slice 4.5: Map State Variants + Dynamic Map Presentation (Complete)**
+**Slice 4.75: Map Presentation Cleanup + Real Map Renderer (Complete)**
 
 The engine can currently:
 
@@ -38,6 +191,8 @@ The engine can currently:
 - Transition between maps using exit objects
 - Dynamically change map presentation based on world state
 - Enable and disable map objects based on story flags
+- Render maps using a development debug renderer
+- Render maps using real visual assets through the MonoGame content pipeline
 
 Movement remains **tile-based for gameplay** but **smoothly interpolated visually**.
 
@@ -165,21 +320,31 @@ Examples:
 - an object disappearing after it is used
 - world changes tied to story progression
 
-### Visual Style Changes
+### Visual Asset Changes
 
-Map variants may define a `VisualStyleId`.
+Map variants may define a `VisualAssetOverrideId`.
 
-This identifier allows the renderer to change how the map is drawn.
+This identifier allows a variant to override the base visual asset of the
+map.
 
-In the current debug renderer this affects:
+The renderer uses the already-resolved runtime map state to determine
+which visual asset should be drawn.
 
-- floor color
+This means map presentation can change when story flags change, while
+gameplay logic remains unchanged.
 
 Example uses include:
 
 - lights turning on in a room
-- environmental alert states
+- environmental state changes
+- progression-based map presentation updates
 - world power systems activating
+
+In debug presentation mode, the engine continues to use debug map
+rendering for development visibility.
+
+In real presentation mode, the engine draws the resolved map visual
+asset through the MonoGame content pipeline.
 
 ------------------------------------------------------------------------
 
@@ -374,25 +539,58 @@ Maps define spawn points used as entry positions.
 
 ------------------------------------------------------------------------
 
-## Rendering (Debug)
+## Rendering
 
-Rendering systems:
+Rendering is intentionally separated from gameplay systems.
 
-MapRenderer
+Gameplay logic lives in engine systems while rendering is handled by
+view-only components.
+
+Current renderers include:
+
+DebugMapRenderer
+MapObjectRenderer
 PlayerRenderer
-NpcRenderer
 DialogueOverlay
 
-Debug visuals currently render:
+Rendering systems contain **no gameplay logic** and operate only on
+runtime state.
 
--   map tiles
--   blocked tiles
--   NPCs
--   chests
--   doors / gates
--   map exits
--   player
--   dialogue box
+### Debug Map Rendering
+
+Debug rendering visualizes gameplay structure rather than final visuals.
+
+Debug mode renders:
+
+- map tiles
+- blocked tiles
+- NPCs
+- chests
+- doors / gates
+- map exits
+- player
+- dialogue box
+
+This mode is used during development to clearly see map structure,
+collision, and object placement.
+
+### Real Map Rendering
+
+Slice **4.75** introduces the first real map renderer.
+
+Maps may now reference visual assets loaded through the MonoGame content
+pipeline.
+
+These assets are rendered as map backgrounds while gameplay objects and
+debug overlays continue to render above them.
+
+The engine supports two presentation modes:
+
+Debug
+Real
+
+Switching presentation modes changes **how maps are drawn** but does not
+affect gameplay systems.
 
 Rendering contains **no gameplay logic**.
 
@@ -414,6 +612,8 @@ Movement supports **hold‑to‑walk** behavior.
 
 # Project Structure
 
+Engine code lives in:
+
 src/JrpgEngine
 
 Key directories:
@@ -424,7 +624,7 @@ Key directories:
 - Interactions -- Map interaction systems
 - Maps -- Map runtime + movement
 - Menus -- Map menu overlay
-- Rendering -- Debug renderers
+- Rendering -- Map and debug renderers
 - Scenes -- Title and map scenes
 - State -- Game runtime state
 - Systems -- Engine services
@@ -432,6 +632,25 @@ Key directories:
 Game data is stored outside the project:
 
 data/
+
+This directory contains JSON definitions for:
+
+- maps
+- characters
+- dialogues
+- interactions
+- items
+- game configuration
+
+Visual assets used by the engine are stored in:
+
+src/JrpgEngine/Content
+
+This directory contains assets processed by the MonoGame content
+pipeline, including:
+
+- map visual assets
+- fonts
 
 ------------------------------------------------------------------------
 
@@ -461,10 +680,52 @@ Completed slices:
 - Slice 3 -- Stateful interactions, flags, and inventory
 - Slice 4 -- Map transitions, doors, and conditional gates
 - Slice 4.5 -- Map state variants and dynamic presentation
+- Slice 4.75 -- Map presentation cleanup and real map renderer
 
 Planned next slices:
 
 - Slice 5 -- Battle system foundation
+
+------------------------------------------------------------------------
+
+# Example Gameplay Scenario
+
+The current engine slices already support small gameplay scenarios built
+entirely through data definitions.
+
+Example: **Power Generator Puzzle**
+
+The player enters a facility where the lights are off.
+
+1. The map loads using a **dark visual variant** because the
+   `flag_generator_on` story flag is not set.
+
+2. The player explores the area and finds a **generator console**.
+
+3. Interacting with the console triggers dialogue which sets:
+
+   SetFlag → `flag_generator_on`
+
+4. When the flag is set:
+
+   - the active **map variant changes**
+   - the map visual asset switches to the **lit version**
+   - new map exits or objects can appear
+
+5. The player can now access areas that were previously unavailable.
+
+This entire sequence is defined through:
+
+- map definitions
+- interaction definitions
+- dialogue results
+- story flags
+- map state variants
+
+No engine code changes are required to implement the puzzle.
+
+This demonstrates the engine's design goal of supporting **story-driven
+world changes through data rather than scripting**.
 
 ------------------------------------------------------------------------
 

@@ -8,11 +8,11 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public sealed class NpcRenderer
+public sealed class MapObjectRenderer
 {
     private readonly Texture2D _pixel;
 
-    public NpcRenderer(Texture2D pixel)
+    public MapObjectRenderer(Texture2D pixel)
     {
         _pixel = pixel ?? throw new ArgumentNullException(nameof(pixel));
     }
@@ -31,8 +31,6 @@ public sealed class NpcRenderer
 
         var mapDef = mapRuntime.Definition;
         var tileSize = mapRuntime.TileSize;
-
-        spriteBatch.Begin();
 
         foreach (var mapObject in mapDef.Objects)
         {
@@ -60,8 +58,6 @@ public sealed class NpcRenderer
                 DrawExit(spriteBatch, mapObject.X, mapObject.Y, tileSize);
             }
         }
-
-        spriteBatch.End();
     }
 
     private void DrawNpc(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)

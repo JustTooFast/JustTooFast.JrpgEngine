@@ -20,9 +20,11 @@ public sealed class MapScene : IScene
     private readonly DefinitionDatabase _definitions;
     private readonly MapCollisionService _mapCollisionService;
     private readonly PlayerMapMover _playerMapMover;
-    private readonly MapRenderer _mapRenderer;
+    private readonly DebugMapRenderer _debugMapRenderer;
+    private readonly RealMapRenderer _realMapRenderer;
     private readonly PlayerRenderer _playerRenderer;
-    private readonly NpcRenderer _npcRenderer;
+    private readonly MapObjectRenderer _mapObjectRenderer;
+    private readonly PresentationMode _presentationMode;
     private readonly PauseMenuOverlay _pauseMenuOverlay;
     private readonly DialogueOverlay _dialogueOverlay;
     private readonly MapInteractionRunner _interactionRunner;
@@ -41,20 +43,24 @@ public sealed class MapScene : IScene
         DefinitionDatabase definitions,
         GameState gameState,
         MapCollisionService mapCollisionService,
-        MapRenderer mapRenderer,
+        DebugMapRenderer debugMapRenderer,
+        RealMapRenderer realMapRenderer,
         PlayerRenderer playerRenderer,
-        NpcRenderer npcRenderer,
+        MapObjectRenderer mapObjectRenderer,
         PauseMenuOverlay pauseMenuOverlay,
-        DialogueOverlay dialogueOverlay)
+        DialogueOverlay dialogueOverlay,
+        PresentationMode presentationMode)
     {
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         GameState = gameState ?? throw new ArgumentNullException(nameof(gameState));
         _mapCollisionService = mapCollisionService ?? throw new ArgumentNullException(nameof(mapCollisionService));
-        _mapRenderer = mapRenderer ?? throw new ArgumentNullException(nameof(mapRenderer));
+        _debugMapRenderer = debugMapRenderer ?? throw new ArgumentNullException(nameof(debugMapRenderer));
+        _realMapRenderer = realMapRenderer ?? throw new ArgumentNullException(nameof(realMapRenderer));
         _playerRenderer = playerRenderer ?? throw new ArgumentNullException(nameof(playerRenderer));
-        _npcRenderer = npcRenderer ?? throw new ArgumentNullException(nameof(npcRenderer));
+        _mapObjectRenderer = mapObjectRenderer ?? throw new ArgumentNullException(nameof(mapObjectRenderer));
         _pauseMenuOverlay = pauseMenuOverlay ?? throw new ArgumentNullException(nameof(pauseMenuOverlay));
         _dialogueOverlay = dialogueOverlay ?? throw new ArgumentNullException(nameof(dialogueOverlay));
+        _presentationMode = presentationMode;
 
         _mapStateResolver = new MapStateResolver();
         RuntimeMap = BuildRuntimeMap(GetCurrentMapDef());
@@ -175,11 +181,36 @@ public sealed class MapScene : IScene
 
     public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
     {
-        _mapRenderer.Draw(spriteBatch, RuntimeMap);
-        _npcRenderer.Draw(spriteBatch, RuntimeMap);
+        if (gameTime is null)
+        {
+            throw new ArgumentNullException(nameof(gameTime));
+        }
+
+        if (spriteBatch is null)
+        {
+            throw new ArgumentNullException(nameof(spriteBatch));
+        }
+
+        var context = new MapSceneRenderContext(
+            spriteBatch,
+            gameTime,
+            GameState,
+            RuntimeMap);
+
+        spriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            RasterizerState.CullNone);
+
+        GetMapBackgroundRenderer().Draw(context);
+        _mapObjectRenderer.Draw(spriteBatch, RuntimeMap);
 
         var playerWorldPosition = _playerMapMover.GetVisualWorldPosition(GameState, RuntimeMap.TileSize);
         _playerRenderer.Draw(spriteBatch, playerWorldPosition, RuntimeMap.TileSize);
+
+        spriteBatch.End();
 
         if (_activeDialogue is not null)
         {
@@ -624,12 +655,19 @@ public sealed class MapScene : IScene
         return new MapRuntime(
             resolvedMapState.EffectiveMapDef,
             resolvedMapState.ActiveVariantId,
-            resolvedMapState.VisualStyleId);
+            resolvedMapState.VisualAssetId);
     }
 
     private void RefreshCurrentMapState()
     {
         RuntimeMap = BuildRuntimeMap(GetCurrentMapDef());
+    }
+
+    private IMapBackgroundRenderer GetMapBackgroundRenderer()
+    {
+        return _presentationMode == PresentationMode.Real
+            ? _realMapRenderer
+            : _debugMapRenderer;
     }
 
     private enum MapControlState

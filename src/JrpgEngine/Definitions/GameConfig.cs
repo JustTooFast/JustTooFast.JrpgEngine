@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System.Collections.Generic;
+using JustTooFast.JrpgEngine.Rendering;
 
 namespace JustTooFast.JrpgEngine.Definitions;
 
@@ -16,4 +17,6 @@ public sealed class GameConfig
     public string StartingFacing { get; set; } = "Down";
 
     public List<string> StartingPartyMemberIds { get; set; } = new();
+
+    public PresentationMode PresentationMode { get; set; } = PresentationMode.Debug;
 }

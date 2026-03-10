@@ -40,13 +40,8 @@ public sealed class PlayerRenderer
             tileSize - (inset * 2),
             tileSize - (inset * 2));
 
-        spriteBatch.Begin();
-
         spriteBatch.Draw(_pixel, bounds, Color.Gold);
-
         DrawRectOutline(spriteBatch, bounds, 2, Color.Black);
-
-        spriteBatch.End();
     }
 
     private void DrawRectOutline(
