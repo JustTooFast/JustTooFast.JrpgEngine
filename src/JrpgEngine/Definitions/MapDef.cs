@@ -21,6 +21,8 @@ public sealed class MapDef
     public List<MapSpawnDef> Spawns { get; set; } = new();
 
     public List<MapObjectDef> Objects { get; set; } = new();
+
+    public List<MapStateVariantDef> StateVariants { get; set; } = new();
 }
 
 public sealed class MapBlockedTileDef
@@ -54,4 +56,23 @@ public sealed class MapObjectDef
     public bool BlocksMovement { get; set; } = true;
 
     public string InteractionId { get; set; } = string.Empty;
+
+    public string? VisibleIfFlagSet { get; set; }
+
+    public string? VisibleIfFlagClear { get; set; }
+}
+
+public sealed class MapStateVariantDef
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string FlagId { get; set; } = string.Empty;
+
+    public bool ActiveWhenSet { get; set; } = true;
+
+    public string? VisualStyleId { get; set; }
+
+    public List<string> EnableObjectIds { get; set; } = new();
+
+    public List<string> DisableObjectIds { get; set; } = new();
 }

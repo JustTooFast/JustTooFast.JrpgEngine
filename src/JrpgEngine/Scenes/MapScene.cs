@@ -26,6 +26,7 @@ public sealed class MapScene : IScene
     private readonly PauseMenuOverlay _pauseMenuOverlay;
     private readonly DialogueOverlay _dialogueOverlay;
     private readonly MapInteractionRunner _interactionRunner;
+    private readonly MapStateResolver _mapStateResolver;
 
     private KeyboardState _previousKeyboardState;
     private FacingDirection? _heldMoveDirection;
@@ -55,7 +56,9 @@ public sealed class MapScene : IScene
         _pauseMenuOverlay = pauseMenuOverlay ?? throw new ArgumentNullException(nameof(pauseMenuOverlay));
         _dialogueOverlay = dialogueOverlay ?? throw new ArgumentNullException(nameof(dialogueOverlay));
 
-        RuntimeMap = new MapRuntime(GetCurrentMapDef());
+        _mapStateResolver = new MapStateResolver();
+        RuntimeMap = BuildRuntimeMap(GetCurrentMapDef());
+
         _playerMapMover = new PlayerMapMover();
         _interactionRunner = new MapInteractionRunner(_definitions, GameState);
 
@@ -222,16 +225,17 @@ public sealed class MapScene : IScene
             throw new ArgumentNullException(nameof(dialogueSession));
         }
 
+        var didChangeAnyFlag = false;
+
         foreach (var result in dialogueSession.Results)
         {
             if (string.Equals(result.Type, "SetFlag", StringComparison.Ordinal))
             {
-                if (string.IsNullOrWhiteSpace(result.FlagId))
+                if (ApplySetFlagResult(result))
                 {
-                    throw new InvalidOperationException("SetFlag result requires a non-empty FlagId.");
+                    didChangeAnyFlag = true;
                 }
 
-                GameState.StoryFlags.Set(result.FlagId);
                 continue;
             }
 
@@ -260,6 +264,23 @@ public sealed class MapScene : IScene
             throw new InvalidOperationException(
                 $"Unsupported dialogue result type '{result.Type}'.");
         }
+
+        if (didChangeAnyFlag)
+        {
+            RefreshCurrentMapState();
+        }
+    }
+
+    private bool ApplySetFlagResult(InteractionResultDef result)
+    {
+        if (string.IsNullOrWhiteSpace(result.FlagId))
+        {
+            throw new InvalidOperationException("SetFlag result requires a non-empty FlagId.");
+        }
+
+        var wasAlreadySet = GameState.StoryFlags.IsSet(result.FlagId);
+        GameState.StoryFlags.Set(result.FlagId);
+        return !wasAlreadySet;
     }
 
     private void TryStartFrontTileInteraction()
@@ -393,7 +414,7 @@ public sealed class MapScene : IScene
         GameState.PlayerTileY = destinationSpawn.Y;
         GameState.Facing = destinationSpawn.Facing;
 
-        RuntimeMap = new MapRuntime(destinationMap);
+        RuntimeMap = BuildRuntimeMap(destinationMap);
         _playerMapMover.InitializeFromGameState(GameState);
 
         GameState.PendingMapTransition = null;
@@ -593,6 +614,22 @@ public sealed class MapScene : IScene
         }
 
         return mapDef;
+    }
+
+    // Rebuild the current runtime map deterministically from source definitions and story flags.
+    private MapRuntime BuildRuntimeMap(MapDef sourceMap)
+    {
+        var resolvedMapState = _mapStateResolver.Resolve(sourceMap, GameState.StoryFlags);
+
+        return new MapRuntime(
+            resolvedMapState.EffectiveMapDef,
+            resolvedMapState.ActiveVariantId,
+            resolvedMapState.VisualStyleId);
+    }
+
+    private void RefreshCurrentMapState()
+    {
+        RuntimeMap = BuildRuntimeMap(GetCurrentMapDef());
     }
 
     private enum MapControlState

@@ -18,32 +18,34 @@ This approach keeps the engine stable while gameplay systems are added.
 
 # Current Status
 
-**Slice 4: Map Transitions + Doors + Conditional Gates (Complete)**
+**Slice 4.5: Map State Variants + Dynamic Map Presentation (Complete)**
 
 The engine can currently:
 
--   Load game definitions from external JSON data
--   Start a new game from a title screen
--   Load multiple maps
--   Move the party leader on the map
--   Block movement using tile collision
--   Interact with NPCs on the map
--   Display dialogue conversations
--   Pause the game using a map menu
--   Use story flags to track world state
--   Change dialogue based on flag conditions
--   Open treasure chests and add items to inventory
--   Unlock and open doors using key flags
--   Pass through conditional gates once flags are met
--   Transition between maps using exit objects
+- Load game definitions from external JSON data
+- Start a new game from a title screen
+- Load multiple maps
+- Move the party leader on the map
+- Block movement using tile collision
+- Interact with NPCs on the map
+- Display dialogue conversations
+- Pause the game using a map menu
+- Use story flags to track world state
+- Change dialogue based on flag conditions
+- Open treasure chests and add items to inventory
+- Unlock and open doors using key flags
+- Pass through conditional gates once flags are met
+- Transition between maps using exit objects
+- Dynamically change map presentation based on world state
+- Enable and disable map objects based on story flags
 
-Movement remains **tile-based for gameplay** but **smoothly interpolated
-visually**.
+Movement remains **tile-based for gameplay** but **smoothly interpolated visually**.
 
 Slice 4 expands the gameplay interaction loop:
 
-player → interaction → dialogue → results → world state changes → map
-transitions
+player → interaction → dialogue → results → world state changes → map transitions
+
+Slice 4.5 extends this loop by allowing **map state to react to world flags** without scripting.
 
 ------------------------------------------------------------------------
 
@@ -112,6 +114,72 @@ MapCollisionService
 
 NPC tiles are treated as blocked tiles so players must stand adjacent to
 interact.
+
+------------------------------------------------------------------------
+
+## Map State Variants
+
+Slice 4.5 introduces **map state variants**, allowing maps to react to
+story progression without scripting.
+
+A map can define optional **state variants** that become active when
+specific story flags are set.
+
+A variant can:
+
+- change the map's visual style
+- enable objects that were previously hidden
+- disable objects that should no longer appear
+
+Only **one variant may be active at a time**.
+
+Variants are resolved whenever:
+
+- a map loads
+- a story flag changes
+
+The engine rebuilds the map runtime state deterministically using the
+current story flags.
+
+This allows environmental changes such as:
+
+- lights turning on
+- generators activating
+- objects appearing or disappearing
+- progression-based world changes
+
+### Object Visibility Conditions
+
+Individual map objects can optionally define simple visibility rules.
+
+Supported conditions:
+
+- `VisibleIfFlagSet`
+- `VisibleIfFlagClear`
+
+Only one condition may be defined per object.
+
+Examples:
+
+- an NPC appearing after a quest begins
+- an object disappearing after it is used
+- world changes tied to story progression
+
+### Visual Style Changes
+
+Map variants may define a `VisualStyleId`.
+
+This identifier allows the renderer to change how the map is drawn.
+
+In the current debug renderer this affects:
+
+- floor color
+
+Example uses include:
+
+- lights turning on in a room
+- environmental alert states
+- world power systems activating
 
 ------------------------------------------------------------------------
 
@@ -332,13 +400,13 @@ Rendering contains **no gameplay logic**.
 
 # Controls
 
-  Key                     Action
-  ----------------------- -----------------------------
-  Arrow Keys / WASD       Move
-  Enter / Space           Interact / Advance Dialogue
-  Enter                   Start game (title screen)
-  Escape                  Open / close map menu
-  Escape (Title Screen)   Exit application
+| Key | Action |
+|-----|-------|
+| Arrow Keys / WASD | Move |
+| Enter / Space | Interact / Advance Dialogue |
+| Enter | Start game (title screen) |
+| Escape | Open / close map menu |
+| Escape (Title Screen) | Exit application |
 
 Movement supports **hold‑to‑walk** behavior.
 
@@ -350,16 +418,16 @@ src/JrpgEngine
 
 Key directories:
 
-Core -- Engine coordination
-Definitions -- Data definitions
-Dialogue -- Dialogue runtime + UI
-Interactions -- Map interaction systems
-Maps -- Map runtime + movement
-Menus -- Map menu overlay
-Rendering -- Debug renderers
-Scenes -- Title and map scenes
-State -- Game runtime state
-Systems -- Engine services
+- Core -- Engine coordination
+- Definitions -- Data definitions
+- Dialogue -- Dialogue runtime + UI
+- Interactions -- Map interaction systems
+- Maps -- Map runtime + movement
+- Menus -- Map menu overlay
+- Rendering -- Debug renderers
+- Scenes -- Title and map scenes
+- State -- Game runtime state
+- Systems -- Engine services
 
 Game data is stored outside the project:
 
@@ -387,15 +455,16 @@ Each slice:
 
 Completed slices:
 
-Slice 0 -- Bootstrap
-Slice 1 -- Map navigation foundation
-Slice 2 -- Map interaction and dialogue system
-Slice 3 -- Stateful interactions, flags, and inventory
-Slice 4 -- Map transitions, doors, and conditional gates
+- Slice 0 -- Bootstrap
+- Slice 1 -- Map navigation foundation
+- Slice 2 -- Map interaction and dialogue system
+- Slice 3 -- Stateful interactions, flags, and inventory
+- Slice 4 -- Map transitions, doors, and conditional gates
+- Slice 4.5 -- Map state variants and dynamic presentation
 
 Planned next slices:
 
-Slice 5 -- Battle system foundation
+- Slice 5 -- Battle system foundation
 
 ------------------------------------------------------------------------
 

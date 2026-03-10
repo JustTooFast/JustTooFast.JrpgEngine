@@ -62,6 +62,12 @@
       "x": 7,
       "y": 2,
       "facing": "Down"
+    },
+    {
+      "id": "spawn_from_power_room",
+      "x": 2,
+      "y": 7,
+      "facing": "Up"
     }
   ],
   "objects": [
@@ -96,6 +102,14 @@
       "y": 2,
       "blocksMovement": false,
       "interactionId": "int_test_exit_to_house_01"
+    },
+    {
+      "id": "exit_power_room_01",
+      "type": "MapExit",
+      "x": 2,
+      "y": 8,
+      "blocksMovement": false,
+      "interactionId": "int_exit_to_power_room_01"
     }
   ]
 }

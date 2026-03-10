@@ -1,0 +1,7 @@
+{
+  "id": "int_exit_to_power_room_01",
+  "type": "MapExit",
+  "destinationMapId": "map_test_power_room",
+  "destinationSpawnId": "spawn_from_town",
+  "triggerOnStep": false
+}

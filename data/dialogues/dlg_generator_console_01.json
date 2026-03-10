@@ -1,0 +1,25 @@
+{
+  "id": "dlg_generator_console_01",
+  "variants": [
+    {
+      "condition": {
+        "lacksFlag": "flag_generator_on"
+      },
+      "lines": [
+        "You restore power to the facility."
+      ],
+      "results": [
+        {
+          "type": "SetFlag",
+          "flagId": "flag_generator_on"
+        }
+      ]
+    },
+    {
+      "lines": [
+        "The generator is already running."
+      ],
+      "results": []
+    }
+  ]
+}
