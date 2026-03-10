@@ -31,9 +31,11 @@ public sealed class GameRoot : Game
 
     private Texture2D? _debugPixel;
     private SpriteFont? _debugFont;
-    private MapRenderer? _mapRenderer;
+    private DebugMapRenderer? _debugMapRenderer;
+    private RealMapRenderer? _realMapRenderer;
     private PlayerRenderer? _playerRenderer;
-    private NpcRenderer? _npcRenderer;
+    private MapObjectRenderer? _mapObjectRenderer;
+    private MapVisualTextureStore? _mapVisualTextureStore;
     private PauseMenuOverlay? _pauseMenuOverlay;
     private DialogueOverlay? _dialogueOverlay;
 
@@ -52,9 +54,11 @@ public sealed class GameRoot : Game
         _debugPixel = DebugTextureFactory.CreateSolidTexture(GraphicsDevice, Color.White);
         _debugFont = Content.Load<SpriteFont>("Fonts/DebugFont");
 
-        _mapRenderer = new MapRenderer(_debugPixel);
+        _debugMapRenderer = new DebugMapRenderer(_debugPixel);
+        _mapVisualTextureStore = new MapVisualTextureStore(Content);
+        _realMapRenderer = new RealMapRenderer(_mapVisualTextureStore);
         _playerRenderer = new PlayerRenderer(_debugPixel);
-        _npcRenderer = new NpcRenderer(_debugPixel);
+        _mapObjectRenderer = new MapObjectRenderer(_debugPixel);
         _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
         _dialogueOverlay = new DialogueOverlay(_debugPixel, _debugFont);
 
@@ -136,9 +140,14 @@ public sealed class GameRoot : Game
             throw new InvalidOperationException("MapCollisionService has not been initialized.");
         }
 
-        if (_mapRenderer is null)
+        if (_debugMapRenderer is null)
         {
-            throw new InvalidOperationException("MapRenderer has not been initialized.");
+            throw new InvalidOperationException("DebugMapRenderer has not been initialized.");
+        }
+
+        if (_realMapRenderer is null)
+        {
+            throw new InvalidOperationException("RealMapRenderer has not been initialized.");
         }
 
         if (_playerRenderer is null)
@@ -146,9 +155,9 @@ public sealed class GameRoot : Game
             throw new InvalidOperationException("PlayerRenderer has not been initialized.");
         }
 
-        if (_npcRenderer is null)
+        if (_mapObjectRenderer is null)
         {
-            throw new InvalidOperationException("NpcRenderer has not been initialized.");
+            throw new InvalidOperationException("MapObjectRenderer has not been initialized.");
         }
 
         if (_pauseMenuOverlay is null)
@@ -165,11 +174,13 @@ public sealed class GameRoot : Game
             _definitions,
             gameState,
             _mapCollisionService,
-            _mapRenderer,
+            _debugMapRenderer,
+            _realMapRenderer,
             _playerRenderer,
-            _npcRenderer,
+            _mapObjectRenderer,
             _pauseMenuOverlay,
-            _dialogueOverlay);
+            _dialogueOverlay,
+            _definitions.GameConfig.PresentationMode);
     }
 
     private static string ResolveDataRoot()

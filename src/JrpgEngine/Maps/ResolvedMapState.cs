@@ -10,16 +10,16 @@ public sealed class ResolvedMapState
     public ResolvedMapState(
         MapDef effectiveMapDef,
         string? activeVariantId,
-        string? visualStyleId)
+        string? visualAssetId)
     {
         EffectiveMapDef = effectiveMapDef;
         ActiveVariantId = activeVariantId;
-        VisualStyleId = visualStyleId;
+        VisualAssetId = visualAssetId;
     }
 
     public MapDef EffectiveMapDef { get; }
 
     public string? ActiveVariantId { get; }
 
-    public string? VisualStyleId { get; }
+    public string? VisualAssetId { get; }
 }

@@ -8,32 +8,27 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public sealed class MapRenderer
+public sealed class DebugMapRenderer : IMapBackgroundRenderer
 {
     private readonly Texture2D _pixel;
 
-    public MapRenderer(Texture2D pixel)
+    public DebugMapRenderer(Texture2D pixel)
     {
         _pixel = pixel ?? throw new ArgumentNullException(nameof(pixel));
     }
 
-    public void Draw(SpriteBatch spriteBatch, MapRuntime mapRuntime)
+    public void Draw(MapSceneRenderContext context)
     {
-        if (spriteBatch is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(spriteBatch));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (mapRuntime is null)
-        {
-            throw new ArgumentNullException(nameof(mapRuntime));
-        }
-
+        var spriteBatch = context.SpriteBatch;
+        var mapRuntime = context.RuntimeMap;
         var mapDef = mapRuntime.Definition;
         var tileSize = mapRuntime.TileSize;
         var floorColor = GetFloorColor(mapRuntime);
-
-        spriteBatch.Begin();
 
         for (var y = 0; y < mapDef.Height; y++)
         {
@@ -43,8 +38,7 @@ public sealed class MapRenderer
 
                 spriteBatch.Draw(_pixel, bounds, floorColor);
 
-                var borderThickness = 1;
-                DrawRectOutline(spriteBatch, bounds, borderThickness, Color.Black * 0.35f);
+                DrawRectOutline(spriteBatch, bounds, 1, Color.Black * 0.35f);
             }
         }
 
@@ -59,8 +53,6 @@ public sealed class MapRenderer
             spriteBatch.Draw(_pixel, blockedBounds, Color.DimGray);
             DrawRectOutline(spriteBatch, blockedBounds, 1, Color.Black);
         }
-
-        spriteBatch.End();
     }
 
     private void DrawRectOutline(
@@ -77,12 +69,6 @@ public sealed class MapRenderer
 
     private static Color GetFloorColor(MapRuntime mapRuntime)
     {
-        return mapRuntime.VisualStyleId switch
-        {
-            "dark" => new Color(25, 35, 25),
-            "lit" => Color.ForestGreen,
-            "alert" => new Color(110, 55, 55),
-            _ => Color.ForestGreen
-        };
+        return Color.ForestGreen;
     }
 }

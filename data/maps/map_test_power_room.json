@@ -1,5 +1,6 @@
 {
   "id": "map_test_power_room",
+  "visualAssetId": "Maps/map_test_power_room",
   "width": 10,
   "height": 8,
   "tileSize": 32,
@@ -84,7 +85,7 @@
       "id": "variant_generator_off",
       "flagId": "flag_generator_on",
       "activeWhenSet": false,
-      "visualStyleId": "dark",
+      "visualAssetOverrideId": "Maps/map_test_power_room_dark",
       "enableObjectIds": [],
       "disableObjectIds": []
     },
@@ -92,7 +93,7 @@
       "id": "variant_generator_on",
       "flagId": "flag_generator_on",
       "activeWhenSet": true,
-      "visualStyleId": "lit",
+      "visualAssetOverrideId": "Maps/map_test_power_room_lit",
       "enableObjectIds": [],
       "disableObjectIds": []
     }
