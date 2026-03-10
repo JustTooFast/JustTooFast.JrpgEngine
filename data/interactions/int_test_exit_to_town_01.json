@@ -1,0 +1,7 @@
+{
+  "id": "int_test_exit_to_town_01",
+  "type": "MapExit",
+  "destinationMapId": "map_test_town",
+  "destinationSpawnId": "spawn_from_house",
+  "triggerOnStep": true
+}

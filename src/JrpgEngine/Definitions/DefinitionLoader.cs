@@ -265,6 +265,29 @@ public static class DefinitionLoader
                 }
             }
 
+            var seenSpawnIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var spawn in mapDef.Spawns)
+            {
+                if (string.IsNullOrWhiteSpace(spawn.Id))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains a spawn with missing Id.");
+                }
+
+                if (!seenSpawnIds.Add(spawn.Id))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains duplicate spawn id '{spawn.Id}'.");
+                }
+
+                if (spawn.X < 0 || spawn.X >= mapDef.Width ||
+                    spawn.Y < 0 || spawn.Y >= mapDef.Height)
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' spawn '{spawn.Id}' is out of bounds at ({spawn.X}, {spawn.Y}).");
+                }
+            }
+
             var seenObjectIds = new HashSet<string>(StringComparer.Ordinal);
             var occupiedObjectTiles = new HashSet<(int X, int Y)>();
 
@@ -461,8 +484,59 @@ public static class DefinitionLoader
                 continue;
             }
 
+            if (string.Equals(interactionDef.Type, "LockedDoor", StringComparison.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(interactionDef.RequiredFlagId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' of type 'LockedDoor' must have a non-empty RequiredFlagId.");
+                }
+
+                if (string.IsNullOrWhiteSpace(interactionDef.OpenFlagId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' of type 'LockedDoor' must have a non-empty OpenFlagId.");
+                }
+
+                if (string.IsNullOrWhiteSpace(interactionDef.OpenedDialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' of type 'LockedDoor' must have a non-empty OpenedDialogueId.");
+                }
+
+                continue;
+            }
+
+            if (string.Equals(interactionDef.Type, "FlagGate", StringComparison.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(interactionDef.RequiredFlagId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' of type 'FlagGate' must have a non-empty RequiredFlagId.");
+                }
+
+                continue;
+            }
+
+            if (string.Equals(interactionDef.Type, "MapExit", StringComparison.Ordinal))
+            {
+                if (string.IsNullOrWhiteSpace(interactionDef.DestinationMapId))
+                {
+                    throw new InvalidOperationException(
+                        $"MapExit interaction '{interactionId}' must have a non-empty DestinationMapId.");
+                }
+
+                if (string.IsNullOrWhiteSpace(interactionDef.DestinationSpawnId))
+                {
+                    throw new InvalidOperationException(
+                        $"MapExit interaction '{interactionId}' must have a non-empty DestinationSpawnId.");
+                }
+
+                continue;
+            }
+
             throw new InvalidOperationException(
-                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 3.");
+                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 4.");
         }
     }
 
@@ -601,8 +675,72 @@ public static class DefinitionLoader
                 continue;
             }
 
+            if (string.Equals(interactionDef.Type, "LockedDoor", StringComparison.Ordinal))
+            {
+                if (!string.IsNullOrWhiteSpace(interactionDef.DialogueId) &&
+                    !dialogues.ContainsKey(interactionDef.DialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' references missing dialogue '{interactionDef.DialogueId}'.");
+                }
+
+                if (!dialogues.ContainsKey(interactionDef.OpenedDialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' references missing opened dialogue '{interactionDef.OpenedDialogueId}'.");
+                }
+
+                continue;
+            }
+
+            if (string.Equals(interactionDef.Type, "FlagGate", StringComparison.Ordinal))
+            {
+                if (!string.IsNullOrWhiteSpace(interactionDef.DialogueId) &&
+                    !dialogues.ContainsKey(interactionDef.DialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' references missing dialogue '{interactionDef.DialogueId}'.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(interactionDef.OpenedDialogueId) &&
+                    !dialogues.ContainsKey(interactionDef.OpenedDialogueId))
+                {
+                    throw new InvalidOperationException(
+                        $"Interaction '{interactionId}' references missing opened dialogue '{interactionDef.OpenedDialogueId}'.");
+                }
+
+                continue;
+            }
+
+            if (string.Equals(interactionDef.Type, "MapExit", StringComparison.Ordinal))
+            {
+                if (!maps.TryGetValue(interactionDef.DestinationMapId, out var destinationMap))
+                {
+                    throw new InvalidOperationException(
+                        $"MapExit interaction '{interactionId}' references missing destination map '{interactionDef.DestinationMapId}'.");
+                }
+
+                var foundSpawn = false;
+                foreach (var spawn in destinationMap.Spawns)
+                {
+                    if (string.Equals(spawn.Id, interactionDef.DestinationSpawnId, StringComparison.Ordinal))
+                    {
+                        foundSpawn = true;
+                        break;
+                    }
+                }
+
+                if (!foundSpawn)
+                {
+                    throw new InvalidOperationException(
+                        $"MapExit interaction '{interactionId}' references missing destination spawn '{interactionDef.DestinationSpawnId}' on map '{destinationMap.Id}'.");
+                }
+
+                continue;
+            }
+
             throw new InvalidOperationException(
-                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 3.");
+                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 4.");
         }
     }
 }

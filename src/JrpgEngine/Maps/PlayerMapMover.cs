@@ -10,14 +10,6 @@ namespace JustTooFast.JrpgEngine.Maps;
 
 public sealed class PlayerMapMover
 {
-    private readonly MapCollisionService _mapCollisionService;
-
-    public PlayerMapMover(MapCollisionService mapCollisionService)
-    {
-        _mapCollisionService = mapCollisionService
-            ?? throw new ArgumentNullException(nameof(mapCollisionService));
-    }
-
     public bool IsMoving { get; private set; }
 
     public TileCoord MoveFromTile { get; private set; }
@@ -79,16 +71,11 @@ public sealed class PlayerMapMover
         }
     }
 
-    public void TryBeginMove(FacingDirection direction, GameState gameState, MapDef mapDef)
+    public void TryBeginMove(FacingDirection direction, GameState gameState)
     {
         if (gameState is null)
         {
             throw new ArgumentNullException(nameof(gameState));
-        }
-
-        if (mapDef is null)
-        {
-            throw new ArgumentNullException(nameof(mapDef));
         }
 
         if (IsMoving)
@@ -100,11 +87,6 @@ public sealed class PlayerMapMover
 
         var currentTile = new TileCoord(gameState.PlayerTileX, gameState.PlayerTileY);
         var destinationTile = currentTile + GetDirectionOffset(direction);
-
-        if (!_mapCollisionService.CanEnterTile(mapDef, destinationTile))
-        {
-            return;
-        }
 
         IsMoving = true;
         MoveFromTile = currentTile;
@@ -147,18 +129,8 @@ public sealed class PlayerMapMover
         OnSuccessfulTileMoveCommitted(gameState);
     }
 
-    // TODO: future hooks
-    // - encounter step advancement
-    // - poison step damage
-    // - hazard step effects
     private void OnSuccessfulTileMoveCommitted(GameState gameState)
     {
-        // Intentionally narrow.
-        // Future slices can attach explicit engine rules here:
-        // - encounter step advancement
-        // - poison map-step checks
-        //
-        // Do not broaden this into a general event bus.
     }
 
     private static TileCoord GetDirectionOffset(FacingDirection direction)

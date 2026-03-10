@@ -31,6 +31,7 @@ public sealed class MapScene : IScene
     private FacingDirection? _heldMoveDirection;
     private double _nextHeldMoveAllowedTimeMs;
     private DialogueSession? _activeDialogue;
+    private MapControlState _controlState;
 
     private const double HeldMoveRepeatDelayMs = 140.0;
     private const double HeldBlockedRepeatDelayMs = 180.0;
@@ -55,15 +56,16 @@ public sealed class MapScene : IScene
         _dialogueOverlay = dialogueOverlay ?? throw new ArgumentNullException(nameof(dialogueOverlay));
 
         RuntimeMap = new MapRuntime(GetCurrentMapDef());
-        _playerMapMover = new PlayerMapMover(_mapCollisionService);
+        _playerMapMover = new PlayerMapMover();
         _interactionRunner = new MapInteractionRunner(_definitions, GameState);
 
         _playerMapMover.InitializeFromGameState(GameState);
+        _controlState = MapControlState.Normal;
     }
 
     public GameState GameState { get; }
 
-    public MapRuntime RuntimeMap { get; }
+    public MapRuntime RuntimeMap { get; private set; }
 
     public bool RequestReturnToTitle { get; private set; }
 
@@ -74,7 +76,7 @@ public sealed class MapScene : IScene
 
     public bool CanPlayerEnterTile(TileCoord tile)
     {
-        return _mapCollisionService.CanEnterTile(RuntimeMap.Definition, tile);
+        return CanPlayerEnterTileInternal(tile);
     }
 
     public void Enter()
@@ -83,6 +85,9 @@ public sealed class MapScene : IScene
         _heldMoveDirection = null;
         _nextHeldMoveAllowedTimeMs = 0.0;
         _activeDialogue = null;
+        _controlState = GameState.PendingMapTransition is null
+            ? MapControlState.Normal
+            : MapControlState.Transitioning;
         RequestReturnToTitle = false;
         _pauseMenuOverlay.Reset();
         GameState.IsPaused = false;
@@ -100,6 +105,13 @@ public sealed class MapScene : IScene
         }
 
         var keyboardState = Keyboard.GetState();
+
+        if (_controlState == MapControlState.Transitioning)
+        {
+            UpdateTransition();
+            _previousKeyboardState = keyboardState;
+            return;
+        }
 
         if (_activeDialogue is not null)
         {
@@ -138,6 +150,8 @@ public sealed class MapScene : IScene
             TryStartFrontTileInteraction();
         }
 
+        var wasMoving = _playerMapMover.IsMoving;
+
         if (_activeDialogue is null)
         {
             if (!_playerMapMover.IsMoving)
@@ -146,6 +160,11 @@ public sealed class MapScene : IScene
             }
 
             _playerMapMover.Update(gameTime, GameState, RuntimeMap.Definition);
+        }
+
+        if (wasMoving && !_playerMapMover.IsMoving && _controlState == MapControlState.Normal)
+        {
+            TryStartStepOnInteraction();
         }
 
         _previousKeyboardState = keyboardState;
@@ -189,6 +208,7 @@ public sealed class MapScene : IScene
             {
                 ApplyDialogueResults(_activeDialogue);
                 _activeDialogue = null;
+                _controlState = MapControlState.Normal;
             }
         }
 
@@ -245,15 +265,61 @@ public sealed class MapScene : IScene
     private void TryStartFrontTileInteraction()
     {
         var frontObject = TryGetFrontObject();
-        if (frontObject is null)
+        if (frontObject is not null && TryStartInteraction(frontObject))
         {
             return;
         }
 
-        var result = _interactionRunner.TryStart(frontObject.InteractionId);
-        if (!result.Started)
+        var currentObject = TryGetObjectAtTile(GetPlayerTile());
+        if (currentObject is null)
         {
             return;
+        }
+
+        if (!_definitions.Interactions.TryGetValue(currentObject.InteractionId, out var interaction))
+        {
+            throw new InvalidOperationException(
+                $"Interaction '{currentObject.InteractionId}' was not found.");
+        }
+
+        if (!string.Equals(interaction.Type, "MapExit", StringComparison.Ordinal) ||
+            interaction.TriggerOnStep)
+        {
+            return;
+        }
+
+        TryStartInteraction(currentObject);
+    }
+
+    private void TryStartStepOnInteraction()
+    {
+        var currentObject = TryGetObjectAtTile(GetPlayerTile());
+        if (currentObject is null)
+        {
+            return;
+        }
+
+        if (!_definitions.Interactions.TryGetValue(currentObject.InteractionId, out var interaction))
+        {
+            throw new InvalidOperationException(
+                $"Interaction '{currentObject.InteractionId}' was not found.");
+        }
+
+        if (!string.Equals(interaction.Type, "MapExit", StringComparison.Ordinal) ||
+            !interaction.TriggerOnStep)
+        {
+            return;
+        }
+
+        TryStartInteraction(currentObject);
+    }
+
+    private bool TryStartInteraction(MapObjectDef mapObject)
+    {
+        var result = _interactionRunner.TryStart(mapObject.InteractionId);
+        if (!result.Started)
+        {
+            return false;
         }
 
         if (result.DialogueSession is not null)
@@ -261,16 +327,90 @@ public sealed class MapScene : IScene
             _activeDialogue = result.DialogueSession;
             _heldMoveDirection = null;
             _nextHeldMoveAllowedTimeMs = 0.0;
+            _controlState = MapControlState.Dialogue;
+            return true;
         }
+
+        if (result.PendingMapTransition is not null)
+        {
+            BeginMapTransition(
+                result.PendingMapTransition.DestinationMapId,
+                result.PendingMapTransition.DestinationSpawnId);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void BeginMapTransition(string destinationMapId, string destinationSpawnId)
+    {
+        GameState.PendingMapTransition = new PendingMapTransitionState
+        {
+            DestinationMapId = destinationMapId,
+            DestinationSpawnId = destinationSpawnId
+        };
+
+        _heldMoveDirection = null;
+        _nextHeldMoveAllowedTimeMs = 0.0;
+        _pauseMenuOverlay.Reset();
+        GameState.IsPaused = false;
+        _controlState = MapControlState.Transitioning;
+    }
+
+    private void UpdateTransition()
+    {
+        var pending = GameState.PendingMapTransition;
+        if (pending is null)
+        {
+            _controlState = MapControlState.Normal;
+            return;
+        }
+
+        if (!_definitions.Maps.TryGetValue(pending.DestinationMapId, out var destinationMap))
+        {
+            throw new InvalidOperationException(
+                $"Pending transition destination map '{pending.DestinationMapId}' was not found.");
+        }
+
+        MapSpawnDef? destinationSpawn = null;
+        foreach (var spawn in destinationMap.Spawns)
+        {
+            if (string.Equals(spawn.Id, pending.DestinationSpawnId, StringComparison.Ordinal))
+            {
+                destinationSpawn = spawn;
+                break;
+            }
+        }
+
+        if (destinationSpawn is null)
+        {
+            throw new InvalidOperationException(
+                $"Pending transition destination spawn '{pending.DestinationSpawnId}' was not found on map '{destinationMap.Id}'.");
+        }
+
+        GameState.CurrentMapId = destinationMap.Id;
+        GameState.PlayerTileX = destinationSpawn.X;
+        GameState.PlayerTileY = destinationSpawn.Y;
+        GameState.Facing = destinationSpawn.Facing;
+
+        RuntimeMap = new MapRuntime(destinationMap);
+        _playerMapMover.InitializeFromGameState(GameState);
+
+        GameState.PendingMapTransition = null;
+        _controlState = MapControlState.Normal;
     }
 
     private MapObjectDef? TryGetFrontObject()
     {
         var frontTile = GetPlayerTile() + GetDirectionOffset(GameState.Facing);
+        return TryGetObjectAtTile(frontTile);
+    }
 
+    private MapObjectDef? TryGetObjectAtTile(TileCoord tile)
+    {
         foreach (var mapObject in RuntimeMap.Definition.Objects)
         {
-            if (mapObject.X == frontTile.X && mapObject.Y == frontTile.Y)
+            if (mapObject.X == tile.X && mapObject.Y == tile.Y)
             {
                 return mapObject;
             }
@@ -313,7 +453,15 @@ public sealed class MapScene : IScene
         var currentTile = GetPlayerTile();
         var destinationTile = currentTile + GetDirectionOffset(direction);
 
-        _playerMapMover.TryBeginMove(direction, GameState, RuntimeMap.Definition);
+        GameState.Facing = direction;
+
+        if (!CanPlayerEnterTileInternal(destinationTile))
+        {
+            _nextHeldMoveAllowedTimeMs = nowMs + HeldBlockedRepeatDelayMs;
+            return;
+        }
+
+        _playerMapMover.TryBeginMove(direction, GameState);
 
         if (_playerMapMover.IsMoving)
         {
@@ -321,13 +469,47 @@ public sealed class MapScene : IScene
             return;
         }
 
-        if (!_mapCollisionService.CanEnterTile(RuntimeMap.Definition, destinationTile))
+        _nextHeldMoveAllowedTimeMs = nowMs + HeldBlockedRepeatDelayMs;
+    }
+
+    private bool CanPlayerEnterTileInternal(TileCoord tile)
+    {
+        if (!_mapCollisionService.IsInBounds(RuntimeMap.Definition, tile))
         {
-            _nextHeldMoveAllowedTimeMs = nowMs + HeldBlockedRepeatDelayMs;
-            return;
+            return false;
         }
 
-        _nextHeldMoveAllowedTimeMs = nowMs + HeldMoveRepeatDelayMs;
+        foreach (var blockedTile in RuntimeMap.Definition.BlockedTiles)
+        {
+            if (blockedTile.X == tile.X && blockedTile.Y == tile.Y)
+            {
+                return false;
+            }
+        }
+
+        var mapObject = TryGetObjectAtTile(tile);
+        if (mapObject is null || !mapObject.BlocksMovement)
+        {
+            return true;
+        }
+
+        if (!_definitions.Interactions.TryGetValue(mapObject.InteractionId, out var interaction))
+        {
+            throw new InvalidOperationException(
+                $"Interaction '{mapObject.InteractionId}' was not found.");
+        }
+
+        if (string.Equals(interaction.Type, "LockedDoor", StringComparison.Ordinal))
+        {
+            return GameState.StoryFlags.IsSet(interaction.OpenFlagId);
+        }
+
+        if (string.Equals(interaction.Type, "FlagGate", StringComparison.Ordinal))
+        {
+            return GameState.StoryFlags.IsSet(interaction.RequiredFlagId);
+        }
+
+        return false;
     }
 
     private FacingDirection? ResolveHeldDirection(KeyboardState keyboardState)
@@ -411,5 +593,12 @@ public sealed class MapScene : IScene
         }
 
         return mapDef;
+    }
+
+    private enum MapControlState
+    {
+        Normal = 0,
+        Dialogue = 1,
+        Transitioning = 2
     }
 }

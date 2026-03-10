@@ -25,7 +25,6 @@
     { "x": 9, "y": 3 },
 
     { "x": 0, "y": 4 },
-    { "x": 4, "y": 4 },
     { "x": 9, "y": 4 },
 
     { "x": 0, "y": 5 },
@@ -51,6 +50,20 @@
     { "x": 8, "y": 9 },
     { "x": 9, "y": 9 }
   ],
+  "spawns": [
+    {
+      "id": "spawn_default",
+      "x": 2,
+      "y": 2,
+      "facing": "Down"
+    },
+    {
+      "id": "spawn_from_house",
+      "x": 7,
+      "y": 2,
+      "facing": "Down"
+    }
+  ],
   "objects": [
     {
       "id": "npc_test_01",
@@ -67,6 +80,22 @@
       "y": 6,
       "blocksMovement": true,
       "interactionId": "int_test_chest_01"
+    },
+    {
+      "id": "door_test_01",
+      "type": "LockedDoor",
+      "x": 4,
+      "y": 4,
+      "blocksMovement": true,
+      "interactionId": "int_test_locked_door_01"
+    },
+    {
+      "id": "exit_house_01",
+      "type": "MapExit",
+      "x": 8,
+      "y": 2,
+      "blocksMovement": false,
+      "interactionId": "int_test_exit_to_house_01"
     }
   ]
 }

@@ -1,0 +1,11 @@
+{
+  "id": "dlg_test_locked_door_locked",
+  "variants": [
+    {
+      "lines": [
+        "The door is locked."
+      ],
+      "results": []
+    }
+  ]
+}

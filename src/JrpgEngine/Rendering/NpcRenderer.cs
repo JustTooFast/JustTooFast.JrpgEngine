@@ -45,6 +45,19 @@ public sealed class NpcRenderer
             if (string.Equals(mapObject.Type, "Chest", StringComparison.Ordinal))
             {
                 DrawChest(spriteBatch, mapObject.X, mapObject.Y, tileSize);
+                continue;
+            }
+
+            if (string.Equals(mapObject.Type, "LockedDoor", StringComparison.Ordinal) ||
+                string.Equals(mapObject.Type, "FlagGate", StringComparison.Ordinal))
+            {
+                DrawGate(spriteBatch, mapObject.X, mapObject.Y, tileSize);
+                continue;
+            }
+
+            if (string.Equals(mapObject.Type, "MapExit", StringComparison.Ordinal))
+            {
+                DrawExit(spriteBatch, mapObject.X, mapObject.Y, tileSize);
             }
         }
 
@@ -91,6 +104,53 @@ public sealed class NpcRenderer
             latchSize,
             bandHeight + 2);
         spriteBatch.Draw(_pixel, latch, Color.Black);
+    }
+
+    private void DrawGate(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)
+    {
+        var inset = Math.Max(2, tileSize / 12);
+
+        var bounds = new Rectangle(
+            (tileX * tileSize) + inset,
+            (tileY * tileSize) + inset,
+            tileSize - (inset * 2),
+            tileSize - (inset * 2));
+
+        spriteBatch.Draw(_pixel, bounds, Color.DarkRed);
+        DrawRectOutline(spriteBatch, bounds, 2, Color.Black);
+
+        var barWidth = Math.Max(2, tileSize / 8);
+        var leftBar = new Rectangle(bounds.X + (bounds.Width / 3) - (barWidth / 2), bounds.Y, barWidth, bounds.Height);
+        var rightBar = new Rectangle(bounds.X + ((bounds.Width * 2) / 3) - (barWidth / 2), bounds.Y, barWidth, bounds.Height);
+
+        spriteBatch.Draw(_pixel, leftBar, Color.Black);
+        spriteBatch.Draw(_pixel, rightBar, Color.Black);
+    }
+
+    private void DrawExit(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)
+    {
+        var inset = Math.Max(4, tileSize / 8);
+
+        var bounds = new Rectangle(
+            (tileX * tileSize) + inset,
+            (tileY * tileSize) + inset,
+            tileSize - (inset * 2),
+            tileSize - (inset * 2));
+
+        spriteBatch.Draw(_pixel, bounds, Color.MediumPurple);
+        DrawRectOutline(spriteBatch, bounds, 2, Color.Black);
+
+        var innerInset = Math.Max(4, tileSize / 6);
+        var inner = new Rectangle(
+            bounds.X + innerInset,
+            bounds.Y + innerInset,
+            bounds.Width - (innerInset * 2),
+            bounds.Height - (innerInset * 2));
+
+        if (inner.Width > 0 && inner.Height > 0)
+        {
+            spriteBatch.Draw(_pixel, inner, Color.Black);
+        }
     }
 
     private void DrawRectOutline(

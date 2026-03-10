@@ -41,4 +41,13 @@ public sealed class GameState
     public InventoryState Inventory { get; } = new();
 
     public bool IsPaused { get; set; }
+
+    public PendingMapTransitionState? PendingMapTransition { get; set; }
+}
+
+public sealed class PendingMapTransitionState
+{
+    public string DestinationMapId { get; set; } = string.Empty;
+
+    public string DestinationSpawnId { get; set; } = string.Empty;
 }
