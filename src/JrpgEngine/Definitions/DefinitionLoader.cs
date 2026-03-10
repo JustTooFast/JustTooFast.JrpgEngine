@@ -338,6 +338,80 @@ public static class DefinitionLoader
                     throw new InvalidOperationException(
                         $"Map '{mapId}' object '{mapObject.Id}' must have a non-empty InteractionId.");
                 }
+
+                if (!string.IsNullOrWhiteSpace(mapObject.VisibleIfFlagSet) &&
+                    !string.IsNullOrWhiteSpace(mapObject.VisibleIfFlagClear))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' object '{mapObject.Id}' cannot define both VisibleIfFlagSet and VisibleIfFlagClear.");
+                }
+            }
+
+            var seenVariantIds = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var variant in mapDef.StateVariants)
+            {
+                if (string.IsNullOrWhiteSpace(variant.Id))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains a state variant with missing Id.");
+                }
+
+                if (!seenVariantIds.Add(variant.Id))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' contains duplicate state variant id '{variant.Id}'.");
+                }
+
+                if (string.IsNullOrWhiteSpace(variant.FlagId))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' state variant '{variant.Id}' must have a non-empty FlagId.");
+                }
+
+                var seenVariantObjectIds = new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (var objectId in variant.EnableObjectIds)
+                {
+                    if (string.IsNullOrWhiteSpace(objectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' state variant '{variant.Id}' contains an empty EnableObjectId.");
+                    }
+
+                    if (!seenObjectIds.Contains(objectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' state variant '{variant.Id}' enables unknown object '{objectId}'.");
+                    }
+
+                    if (!seenVariantObjectIds.Add(objectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' state variant '{variant.Id}' references object '{objectId}' more than once across enable/disable lists.");
+                    }
+                }
+
+                foreach (var objectId in variant.DisableObjectIds)
+                {
+                    if (string.IsNullOrWhiteSpace(objectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' state variant '{variant.Id}' contains an empty DisableObjectId.");
+                    }
+
+                    if (!seenObjectIds.Contains(objectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' state variant '{variant.Id}' disables unknown object '{objectId}'.");
+                    }
+
+                    if (!seenVariantObjectIds.Add(objectId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Map '{mapId}' state variant '{variant.Id}' references object '{objectId}' more than once across enable/disable lists.");
+                    }
+                }
             }
         }
     }
@@ -536,7 +610,7 @@ public static class DefinitionLoader
             }
 
             throw new InvalidOperationException(
-                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 4.");
+                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}'.");
         }
     }
 
@@ -740,7 +814,7 @@ public static class DefinitionLoader
             }
 
             throw new InvalidOperationException(
-                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}' for Slice 4.");
+                $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}'.");
         }
     }
 }

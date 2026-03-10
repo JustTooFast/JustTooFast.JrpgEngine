@@ -8,12 +8,21 @@ namespace JustTooFast.JrpgEngine.Maps;
 
 public sealed class MapRuntime
 {
-    public MapRuntime(MapDef definition)
+    public MapRuntime(
+        MapDef definition,
+        string? activeVariantId = null,
+        string? visualStyleId = null)
     {
         Definition = definition ?? throw new ArgumentNullException(nameof(definition));
+        ActiveVariantId = activeVariantId;
+        VisualStyleId = visualStyleId;
     }
 
     public MapDef Definition { get; }
+
+    public string? ActiveVariantId { get; }
+
+    public string? VisualStyleId { get; }
 
     public string MapId => Definition.Id;
 

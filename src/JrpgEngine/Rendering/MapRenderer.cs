@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using JustTooFast.JrpgEngine.Definitions;
 using JustTooFast.JrpgEngine.Maps;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -32,6 +31,7 @@ public sealed class MapRenderer
 
         var mapDef = mapRuntime.Definition;
         var tileSize = mapRuntime.TileSize;
+        var floorColor = GetFloorColor(mapRuntime);
 
         spriteBatch.Begin();
 
@@ -41,7 +41,7 @@ public sealed class MapRenderer
             {
                 var bounds = new Rectangle(x * tileSize, y * tileSize, tileSize, tileSize);
 
-                spriteBatch.Draw(_pixel, bounds, Color.ForestGreen);
+                spriteBatch.Draw(_pixel, bounds, floorColor);
 
                 var borderThickness = 1;
                 DrawRectOutline(spriteBatch, bounds, borderThickness, Color.Black * 0.35f);
@@ -73,5 +73,16 @@ public sealed class MapRenderer
         spriteBatch.Draw(_pixel, new Rectangle(rect.Left, rect.Bottom - thickness, rect.Width, thickness), color);
         spriteBatch.Draw(_pixel, new Rectangle(rect.Left, rect.Top, thickness, rect.Height), color);
         spriteBatch.Draw(_pixel, new Rectangle(rect.Right - thickness, rect.Top, thickness, rect.Height), color);
+    }
+
+    private static Color GetFloorColor(MapRuntime mapRuntime)
+    {
+        return mapRuntime.VisualStyleId switch
+        {
+            "dark" => new Color(25, 35, 25),
+            "lit" => Color.ForestGreen,
+            "alert" => new Color(110, 55, 55),
+            _ => Color.ForestGreen
+        };
     }
 }

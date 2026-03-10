@@ -1,0 +1,7 @@
+{
+  "id": "int_exit_elevator_01",
+  "type": "MapExit",
+  "destinationMapId": "map_test_town",
+  "destinationSpawnId": "spawn_default",
+  "triggerOnStep": false
+}
