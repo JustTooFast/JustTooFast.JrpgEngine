@@ -6,5 +6,6 @@ namespace JustTooFast.JrpgEngine.Core;
 public enum SceneType
 {
     Title = 0,
-    Map = 1
+    Map = 1,
+    Battle = 2
 }

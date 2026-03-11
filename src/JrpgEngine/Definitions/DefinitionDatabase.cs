@@ -14,7 +14,10 @@ public sealed class DefinitionDatabase
         Dictionary<string, CharacterDef> characters,
         Dictionary<string, DialogueDef> dialogues,
         Dictionary<string, InteractionDef> interactions,
-        Dictionary<string, ItemDef> items)
+        Dictionary<string, ItemDef> items,
+        Dictionary<string, EnemyDef> enemies,
+        Dictionary<string, EncounterDef> encounters,
+        Dictionary<string, EncounterTableDef> encounterTables)
     {
         GameConfig = gameConfig ?? throw new ArgumentNullException(nameof(gameConfig));
         Maps = maps ?? throw new ArgumentNullException(nameof(maps));
@@ -22,6 +25,9 @@ public sealed class DefinitionDatabase
         Dialogues = dialogues ?? throw new ArgumentNullException(nameof(dialogues));
         Interactions = interactions ?? throw new ArgumentNullException(nameof(interactions));
         Items = items ?? throw new ArgumentNullException(nameof(items));
+        Enemies = enemies ?? throw new ArgumentNullException(nameof(enemies));
+        Encounters = encounters ?? throw new ArgumentNullException(nameof(encounters));
+        EncounterTables = encounterTables ?? throw new ArgumentNullException(nameof(encounterTables));
     }
 
     public GameConfig GameConfig { get; }
@@ -35,4 +41,10 @@ public sealed class DefinitionDatabase
     public IReadOnlyDictionary<string, InteractionDef> Interactions { get; }
 
     public IReadOnlyDictionary<string, ItemDef> Items { get; }
+
+    public IReadOnlyDictionary<string, EnemyDef> Enemies { get; }
+
+    public IReadOnlyDictionary<string, EncounterDef> Encounters { get; }
+
+    public IReadOnlyDictionary<string, EncounterTableDef> EncounterTables { get; }
 }

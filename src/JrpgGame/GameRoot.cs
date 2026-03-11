@@ -28,6 +28,7 @@ public sealed class GameRoot : Game
     private RuntimeStateValidator? _runtimeStateValidator;
     private NewGameService? _newGameService;
     private MapCollisionService? _mapCollisionService;
+    private EncounterService? _encounterService;
 
     private Texture2D? _debugPixel;
     private SpriteFont? _debugFont;
@@ -68,6 +69,7 @@ public sealed class GameRoot : Game
         _runtimeStateValidator = new RuntimeStateValidator();
         _newGameService = new NewGameService(_runtimeStateValidator);
         _mapCollisionService = new MapCollisionService();
+        _encounterService = new EncounterService();
         _sceneManager = new SceneManager();
 
         var titleScene = new TitleScene(
@@ -117,6 +119,10 @@ public sealed class GameRoot : Game
         {
             clearColor = Color.DarkOliveGreen;
         }
+        else if (_sceneManager?.CurrentSceneType == SceneType.Battle)
+        {
+            clearColor = Color.DarkRed;
+        }
 
         GraphicsDevice.Clear(clearColor);
 
@@ -130,6 +136,11 @@ public sealed class GameRoot : Game
 
     private MapScene CreateMapScene(GameState gameState)
     {
+        if (_sceneManager is null)
+        {
+            throw new InvalidOperationException("SceneManager has not been initialized.");
+        }
+
         if (_definitions is null)
         {
             throw new InvalidOperationException("Definitions have not been loaded.");
@@ -138,6 +149,11 @@ public sealed class GameRoot : Game
         if (_mapCollisionService is null)
         {
             throw new InvalidOperationException("MapCollisionService has not been initialized.");
+        }
+
+        if (_encounterService is null)
+        {
+            throw new InvalidOperationException("EncounterService has not been initialized.");
         }
 
         if (_debugMapRenderer is null)
@@ -171,16 +187,19 @@ public sealed class GameRoot : Game
         }
 
         return new MapScene(
+            _sceneManager,
             _definitions,
             gameState,
             _mapCollisionService,
+            _encounterService,
             _debugMapRenderer,
             _realMapRenderer,
             _playerRenderer,
             _mapObjectRenderer,
             _pauseMenuOverlay,
             _dialogueOverlay,
-            _definitions.GameConfig.PresentationMode);
+            _definitions.GameConfig.PresentationMode,
+            CreateMapScene);
     }
 
     private static string ResolveDataRoot()

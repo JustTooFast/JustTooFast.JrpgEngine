@@ -4,6 +4,9 @@
   "width": 8,
   "height": 8,
   "tileSize": 32,
+  "encountersEnabled": true,
+  "encounterRate": 100,
+  "encounterTableId": "encounter_table_test_field",
   "blockedTiles": [
     { "x": 0, "y": 0 },
     { "x": 1, "y": 0 },

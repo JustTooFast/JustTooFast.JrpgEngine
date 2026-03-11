@@ -28,6 +28,9 @@ public static class DefinitionLoader
         var dialoguesPath = Path.Combine(dataRoot, "dialogues");
         var interactionsPath = Path.Combine(dataRoot, "interactions");
         var itemsPath = Path.Combine(dataRoot, "items");
+        var enemiesPath = Path.Combine(dataRoot, "enemies");
+        var encountersPath = Path.Combine(dataRoot, "encounters");
+        var encounterTablesPath = Path.Combine(dataRoot, "encounter_tables");
 
         var gameConfig = JsonFile.Load<GameConfig>(gameConfigPath);
         var maps = LoadMapDefinitions(mapsPath);
@@ -35,6 +38,9 @@ public static class DefinitionLoader
         var dialogues = LoadDialogueDefinitions(dialoguesPath);
         var interactions = LoadInteractionDefinitions(interactionsPath);
         var items = LoadItemDefinitions(itemsPath);
+        var enemies = LoadEnemyDefinitions(enemiesPath);
+        var encounters = LoadEncounterDefinitions(encountersPath);
+        var encounterTables = LoadEncounterTableDefinitions(encounterTablesPath);
 
         ValidateGameConfig(gameConfig);
         ValidateMaps(maps);
@@ -42,10 +48,31 @@ public static class DefinitionLoader
         ValidateDialogues(dialogues);
         ValidateInteractions(interactions);
         ValidateItems(items);
-        ValidateCrossReferences(gameConfig, maps, characters, dialogues, interactions, items);
+        ValidateEnemies(enemies);
+        ValidateEncounters(encounters);
+        ValidateEncounterTables(encounterTables);
+        ValidateCrossReferences(
+            gameConfig,
+            maps,
+            characters,
+            dialogues,
+            interactions,
+            items,
+            enemies,
+            encounters,
+            encounterTables);
 
-        return new DefinitionDatabase(gameConfig, maps, characters, dialogues, interactions, items);
-    }
+        return new DefinitionDatabase(
+            gameConfig,
+            maps,
+            characters,
+            dialogues,
+            interactions,
+            items,
+            enemies,
+            encounters,
+            encounterTables);
+            }
 
     private static Dictionary<string, MapDef> LoadMapDefinitions(string mapsPath)
     {
@@ -217,6 +244,110 @@ public static class DefinitionLoader
         return items;
     }
 
+    private static Dictionary<string, EnemyDef> LoadEnemyDefinitions(string enemiesPath)
+    {
+        if (!Directory.Exists(enemiesPath))
+        {
+            throw new DirectoryNotFoundException($"Enemies folder not found: {enemiesPath}");
+        }
+
+        var enemyFiles = Directory.GetFiles(enemiesPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (enemyFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No enemy definition files found in: {enemiesPath}");
+        }
+
+        var enemies = new Dictionary<string, EnemyDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in enemyFiles)
+        {
+            var enemyDef = JsonFile.Load<EnemyDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(enemyDef.Id))
+            {
+                throw new InvalidOperationException($"Enemy definition in '{filePath}' is missing Id.");
+            }
+
+            if (!enemies.TryAdd(enemyDef.Id, enemyDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate enemy id '{enemyDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return enemies;
+    }
+
+    private static Dictionary<string, EncounterDef> LoadEncounterDefinitions(string encountersPath)
+    {
+        if (!Directory.Exists(encountersPath))
+        {
+            throw new DirectoryNotFoundException($"Encounters folder not found: {encountersPath}");
+        }
+
+        var encounterFiles = Directory.GetFiles(encountersPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (encounterFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No encounter definition files found in: {encountersPath}");
+        }
+
+        var encounters = new Dictionary<string, EncounterDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in encounterFiles)
+        {
+            var encounterDef = JsonFile.Load<EncounterDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(encounterDef.Id))
+            {
+                throw new InvalidOperationException($"Encounter definition in '{filePath}' is missing Id.");
+            }
+
+            if (!encounters.TryAdd(encounterDef.Id, encounterDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate encounter id '{encounterDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return encounters;
+    }
+
+    private static Dictionary<string, EncounterTableDef> LoadEncounterTableDefinitions(string encounterTablesPath)
+    {
+        if (!Directory.Exists(encounterTablesPath))
+        {
+            throw new DirectoryNotFoundException($"Encounter tables folder not found: {encounterTablesPath}");
+        }
+
+        var encounterTableFiles = Directory.GetFiles(encounterTablesPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (encounterTableFiles.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"No encounter table definition files found in: {encounterTablesPath}");
+        }
+
+        var encounterTables = new Dictionary<string, EncounterTableDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in encounterTableFiles)
+        {
+            var encounterTableDef = JsonFile.Load<EncounterTableDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(encounterTableDef.Id))
+            {
+                throw new InvalidOperationException(
+                    $"Encounter table definition in '{filePath}' is missing Id.");
+            }
+
+            if (!encounterTables.TryAdd(encounterTableDef.Id, encounterTableDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate encounter table id '{encounterTableDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return encounterTables;
+    }
+
     private static void ValidateGameConfig(GameConfig gameConfig)
     {
         if (string.IsNullOrWhiteSpace(gameConfig.StartingMapId))
@@ -258,6 +389,31 @@ public static class DefinitionLoader
             if (mapDef.TileSize <= 0)
             {
                 throw new InvalidOperationException($"Map '{mapId}' must have TileSize > 0.");
+            }
+
+            if (!mapDef.EncountersEnabled)
+            {
+                // Allowed: encounter fields may be default/ignored when encounters are disabled.
+            }
+            else
+            {
+                if (mapDef.EncounterRate <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' has encounters enabled but EncounterRate <= 0.");
+                }
+
+                if (string.IsNullOrWhiteSpace(mapDef.EncounterTableId))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' has encounters enabled but EncounterTableId is missing.");
+                }
+            }
+
+            if (mapDef.EncounterRate > 100)
+            {
+                throw new InvalidOperationException(
+                    $"Map '{mapId}' has EncounterRate > 100.");
             }
 
             foreach (var blockedTile in mapDef.BlockedTiles)
@@ -637,13 +793,84 @@ public static class DefinitionLoader
         }
     }
 
+    private static void ValidateEnemies(IReadOnlyDictionary<string, EnemyDef> enemies)
+    {
+        foreach (var (enemyId, enemyDef) in enemies)
+        {
+            if (string.IsNullOrWhiteSpace(enemyDef.Name))
+            {
+                throw new InvalidOperationException(
+                    $"Enemy '{enemyId}' must have a non-empty Name.");
+            }
+        }
+    }
+
+    private static void ValidateEncounters(IReadOnlyDictionary<string, EncounterDef> encounters)
+    {
+        foreach (var (encounterId, encounterDef) in encounters)
+        {
+            if (encounterDef.EnemyIds.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Encounter '{encounterId}' must contain at least one enemy.");
+            }
+
+            if (encounterDef.EnemyIds.Count > 6)
+            {
+                throw new InvalidOperationException(
+                    $"Encounter '{encounterId}' cannot contain more than 6 enemies.");
+            }
+
+            for (var i = 0; i < encounterDef.EnemyIds.Count; i++)
+            {
+                if (string.IsNullOrWhiteSpace(encounterDef.EnemyIds[i]))
+                {
+                    throw new InvalidOperationException(
+                        $"Encounter '{encounterId}' contains an empty enemy id at index {i}.");
+                }
+            }
+        }
+    }
+
+    private static void ValidateEncounterTables(IReadOnlyDictionary<string, EncounterTableDef> encounterTables)
+    {
+        foreach (var (tableId, tableDef) in encounterTables)
+        {
+            if (tableDef.Entries.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Encounter table '{tableId}' must contain at least one entry.");
+            }
+
+            for (var i = 0; i < tableDef.Entries.Count; i++)
+            {
+                var entry = tableDef.Entries[i];
+
+                if (string.IsNullOrWhiteSpace(entry.EncounterId))
+                {
+                    throw new InvalidOperationException(
+                        $"Encounter table '{tableId}' contains an entry with empty EncounterId at index {i}.");
+                }
+
+                if (entry.Weight <= 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Encounter table '{tableId}' entry at index {i} must have Weight > 0.");
+                }
+            }
+        }
+    }
+
     private static void ValidateCrossReferences(
         GameConfig gameConfig,
         IReadOnlyDictionary<string, MapDef> maps,
         IReadOnlyDictionary<string, CharacterDef> characters,
         IReadOnlyDictionary<string, DialogueDef> dialogues,
         IReadOnlyDictionary<string, InteractionDef> interactions,
-        IReadOnlyDictionary<string, ItemDef> items)
+        IReadOnlyDictionary<string, ItemDef> items,
+        IReadOnlyDictionary<string, EnemyDef> enemies,
+        IReadOnlyDictionary<string, EncounterDef> encounters,
+        IReadOnlyDictionary<string, EncounterTableDef> encounterTables)
     {
         if (!maps.TryGetValue(gameConfig.StartingMapId, out var startingMap))
         {
@@ -820,6 +1047,50 @@ public static class DefinitionLoader
 
             throw new InvalidOperationException(
                 $"Interaction '{interactionId}' has unsupported Type '{interactionDef.Type}'.");
+        }
+    
+        foreach (var (mapId, mapDef) in maps)
+        {
+            if (!mapDef.EncountersEnabled)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(mapDef.EncounterTableId))
+            {
+                throw new InvalidOperationException(
+                    $"Map '{mapId}' has encounters enabled but no EncounterTableId.");
+            }
+
+            if (!encounterTables.ContainsKey(mapDef.EncounterTableId))
+            {
+                throw new InvalidOperationException(
+                    $"Map '{mapId}' references missing encounter table '{mapDef.EncounterTableId}'.");
+            }
+        }
+
+        foreach (var (tableId, tableDef) in encounterTables)
+        {
+            foreach (var entry in tableDef.Entries)
+            {
+                if (!encounters.ContainsKey(entry.EncounterId))
+                {
+                    throw new InvalidOperationException(
+                        $"Encounter table '{tableId}' references missing encounter '{entry.EncounterId}'.");
+                }
+            }
+        }
+
+        foreach (var (encounterId, encounterDef) in encounters)
+        {
+            foreach (var enemyId in encounterDef.EnemyIds)
+            {
+                if (!enemies.ContainsKey(enemyId))
+                {
+                    throw new InvalidOperationException(
+                        $"Encounter '{encounterId}' references missing enemy '{enemyId}'.");
+                }
+            }
         }
     }
 }
