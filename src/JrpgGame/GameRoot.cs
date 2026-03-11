@@ -16,7 +16,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
-namespace JustTooFast.JrpgEngine;
+namespace JustTooFast.JrpgGame;
 
 public sealed class GameRoot : Game
 {
@@ -44,7 +44,7 @@ public sealed class GameRoot : Game
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
-        Window.Title = "JustTooFast.JrpgEngine";
+        Window.Title = "JustTooFast.JrpgGame";
     }
 
     protected override void LoadContent()

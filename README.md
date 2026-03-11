@@ -2,6 +2,11 @@
 
 A **data-driven 2D JRPG engine** built in C# using **MonoGame**.
 
+The repository contains:
+
+- **JrpgEngine** — the reusable JRPG engine library
+- **JrpgGame** — a playable host application using the engine
+
 The engine is developed incrementally using **working vertical slices**.
 Each slice adds playable functionality while maintaining strict
 architectural separation between:
@@ -169,9 +174,72 @@ change without affecting core game behavior.
 
 ------------------------------------------------------------------------
 
+# Engine / Game Host Separation
+
+Starting with **Slice 4.9**, the project is split into two projects:
+
+- **JrpgEngine** — reusable engine library
+- **JrpgGame** — executable game host
+
+This separation keeps the engine reusable while allowing individual
+games to provide their own assets and startup configuration.
+
+### JrpgEngine (Library)
+
+The engine library contains all reusable gameplay systems:
+
+- definitions and definition loading
+- runtime state models
+- gameplay systems
+- map systems
+- interaction systems
+- dialogue systems
+- rendering systems
+- scene management
+
+The engine contains **no executable entry point** and does not own
+content assets.
+
+### JrpgGame (Executable Host)
+
+The game host provides the runnable application and concrete assets.
+
+Responsibilities include:
+
+- Program entry point
+- MonoGame Game bootstrap
+- window and application configuration
+- MonoGame Content pipeline
+- concrete visual assets
+
+The host launches the engine and supplies content and configuration.
+
+### Why This Split Exists
+
+Separating the engine from the game host allows:
+
+- reuse of the engine in multiple projects
+- clean separation between **engine code** and **game content**
+- clearer ownership of assets and application startup
+- easier experimentation with different games using the same engine
+
+Gameplay rules and systems remain inside **JrpgEngine**, while
+the executable application and assets live inside **JrpgGame**.
+
+------------------------------------------------------------------------
+
 # Current Status
 
-**Slice 4.75: Map Presentation Cleanup + Real Map Renderer (Complete)**
+**Slice 4.9: Engine Library Split + Game Host Extraction (Complete)**
+
+The engine now separates the reusable gameplay engine from the
+executable game host.
+
+- `JrpgEngine` — reusable JRPG engine library
+- `JrpgGame` — MonoGame executable host application
+
+This structural change preserves all existing gameplay behavior while
+making the engine reusable across multiple projects.
 
 The engine can currently:
 
@@ -201,6 +269,9 @@ Slice 4 expands the gameplay interaction loop:
 player → interaction → dialogue → results → world state changes → map transitions
 
 Slice 4.5 extends this loop by allowing **map state to react to world flags** without scripting.
+
+Slice 4.9 introduces **engine / host separation**, allowing the engine
+to be reused independently of the executable game application.
 
 ------------------------------------------------------------------------
 
@@ -612,9 +683,15 @@ Movement supports **hold‑to‑walk** behavior.
 
 # Project Structure
 
-Engine code lives in:
+The repository now contains two main projects:
 
-src/JrpgEngine
+src/JrpgEngine  
+Reusable engine library containing gameplay systems.
+
+src/JrpgGame  
+Executable MonoGame host that launches the engine.
+
+### JrpgEngine Structure
 
 Key directories:
 
@@ -629,6 +706,14 @@ Key directories:
 - State -- Game runtime state
 - Systems -- Engine services
 
+### JrpgGame Structure
+
+The game host contains:
+
+- Program.cs -- executable entry point
+- GameRoot -- MonoGame application host
+- Content/ -- MonoGame content pipeline assets
+
 Game data is stored outside the project:
 
 data/
@@ -642,15 +727,20 @@ This directory contains JSON definitions for:
 - items
 - game configuration
 
-Visual assets used by the engine are stored in:
+Visual assets used by the game are stored in:
 
-src/JrpgEngine/Content
+src/JrpgGame/Content
 
 This directory contains assets processed by the MonoGame content
 pipeline, including:
 
 - map visual assets
 - fonts
+- other presentation assets
+
+The engine loads these assets through the MonoGame content pipeline,
+but the assets themselves belong to the **game host project**, not the
+engine library.
 
 ------------------------------------------------------------------------
 
@@ -658,7 +748,7 @@ pipeline, including:
 
 From the repository root:
 
-dotnet run --project src/JrpgEngine/JrpgEngine.csproj
+dotnet run --project src/JrpgGame/JrpgGame.csproj
 
 ------------------------------------------------------------------------
 
@@ -681,6 +771,7 @@ Completed slices:
 - Slice 4 -- Map transitions, doors, and conditional gates
 - Slice 4.5 -- Map state variants and dynamic presentation
 - Slice 4.75 -- Map presentation cleanup and real map renderer
+- Slice 4.9 -- Engine / Game host separation
 
 Planned next slices:
 
