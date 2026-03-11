@@ -3,7 +3,7 @@
 
 using System;
 
-namespace JustTooFast.JrpgEngine;
+namespace JustTooFast.JrpgGame;
 
 public static class Program
 {

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/JrpgEngine/JrpgEngine.csproj" />
+    <Project Path="src/JrpgGame/JrpgGame.csproj" />
   </Folder>
 </Solution>
