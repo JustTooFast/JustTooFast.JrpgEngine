@@ -18,6 +18,12 @@ public sealed class MapDef
 
     public string? VisualAssetId { get; set; }
 
+    public bool EncountersEnabled { get; set; }
+
+    public int EncounterRate { get; set; }
+
+    public string? EncounterTableId { get; set; }
+
     public List<MapBlockedTileDef> BlockedTiles { get; set; } = new();
 
     public List<MapSpawnDef> Spawns { get; set; } = new();

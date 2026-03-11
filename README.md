@@ -230,16 +230,10 @@ the executable application and assets live inside **JrpgGame**.
 
 # Current Status
 
-**Slice 4.9: Engine Library Split + Game Host Extraction (Complete)**
+**Slice 5: Random Encounter Pipeline (Complete)**
 
-The engine now separates the reusable gameplay engine from the
-executable game host.
-
-- `JrpgEngine` — reusable JRPG engine library
-- `JrpgGame` — MonoGame executable host application
-
-This structural change preserves all existing gameplay behavior while
-making the engine reusable across multiple projects.
+The engine now supports the core JRPG exploration loop by connecting
+map movement to battle encounters.
 
 The engine can currently:
 
@@ -261,17 +255,18 @@ The engine can currently:
 - Enable and disable map objects based on story flags
 - Render maps using a development debug renderer
 - Render maps using real visual assets through the MonoGame content pipeline
+- Trigger random encounters based on player movement
+- Transition between exploration and battle scenes
 
 Movement remains **tile-based for gameplay** but **smoothly interpolated visually**.
 
-Slice 4 expands the gameplay interaction loop:
+Slice 5 expands the gameplay loop:
 
-player → interaction → dialogue → results → world state changes → map transitions
+player → exploration → encounter → battle → return → exploration
 
-Slice 4.5 extends this loop by allowing **map state to react to world flags** without scripting.
-
-Slice 4.9 introduces **engine / host separation**, allowing the engine
-to be reused independently of the executable game application.
+Slice 5 introduces **random encounters triggered by map movement** and
+adds the first **BattleScene**, connecting exploration gameplay to the
+battle system pipeline.
 
 ------------------------------------------------------------------------
 
@@ -281,7 +276,7 @@ to be reused independently of the executable game application.
 
 Startup sequence:
 
-GameRoot → TitleScene → MapScene
+GameRoot → TitleScene → MapScene → BattleScene → MapScene
 
 The title screen allows starting a new game and exiting the application.
 
@@ -442,10 +437,73 @@ PlayerMapMover
 Tile movement commit points allow later systems to hook into movement
 events such as:
 
--   encounter steps
--   poison damage
--   environmental hazards
--   scripted triggers
+- random encounter checks
+- poison damage
+- environmental hazards
+- scripted triggers
+
+------------------------------------------------------------------------
+
+## Random Encounter System
+
+Slice 5 introduces **random encounters triggered by player movement**.
+
+Encounters are evaluated whenever the player successfully completes a
+tile movement.
+
+Encounter rules:
+
+- Only successful tile movement counts as a step
+- Blocked movement does not count
+- Turning in place does not count
+- Encounter checks occur after step-trigger interactions
+
+Maps may optionally define encounter configuration:
+
+- `EncountersEnabled`
+- `EncounterRate`
+- `EncounterTableId`
+
+Example map configuration:
+
+```json
+{
+"encountersEnabled": true,
+"encounterRate": 12,
+"encounterTableId": "encounter_table_field"
+}
+```
+
+Encounter tables define the possible enemy groups that can appear.
+
+Example encounter table:
+
+```json
+{
+"id": "encounter_table_field",
+"entries": [
+   { "encounterId": "encounter_slime_x2", "weight": 100 }
+]
+}
+```
+
+The engine resolves encounters using weighted random selection.
+
+### Encounter Flow
+
+The encounter pipeline works as follows:
+
+movement step  
+→ encounter check  
+→ encounter table selection  
+→ BattleScene created  
+→ battle resolves  
+→ return to MapScene
+
+Battle logic itself will be implemented in later slices.
+
+For Slice 5, the battle scene currently acts as a minimal placeholder
+that demonstrates the exploration → battle → return pipeline.
 
 ------------------------------------------------------------------------
 

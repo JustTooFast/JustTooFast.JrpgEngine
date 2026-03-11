@@ -1,0 +1,7 @@
+{
+  "id": "encounter_slime_x2",
+  "enemyIds": [
+    "enemy_slime",
+    "enemy_slime"
+  ]
+}

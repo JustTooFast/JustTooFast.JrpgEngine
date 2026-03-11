@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
+using JustTooFast.JrpgEngine.Core;
 using JustTooFast.JrpgEngine.Definitions;
 using JustTooFast.JrpgEngine.Dialogue;
 using JustTooFast.JrpgEngine.Interactions;
@@ -9,6 +10,7 @@ using JustTooFast.JrpgEngine.Maps;
 using JustTooFast.JrpgEngine.Menus;
 using JustTooFast.JrpgEngine.Rendering;
 using JustTooFast.JrpgEngine.State;
+using JustTooFast.JrpgEngine.Systems;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -29,6 +31,9 @@ public sealed class MapScene : IScene
     private readonly DialogueOverlay _dialogueOverlay;
     private readonly MapInteractionRunner _interactionRunner;
     private readonly MapStateResolver _mapStateResolver;
+    private readonly EncounterService _encounterService;
+    private readonly SceneManager _sceneManager;
+    private readonly Func<GameState, MapScene> _mapSceneFactory;
 
     private KeyboardState _previousKeyboardState;
     private FacingDirection? _heldMoveDirection;
@@ -40,20 +45,25 @@ public sealed class MapScene : IScene
     private const double HeldBlockedRepeatDelayMs = 180.0;
 
     public MapScene(
+        SceneManager sceneManager,
         DefinitionDatabase definitions,
         GameState gameState,
         MapCollisionService mapCollisionService,
+        EncounterService encounterService,
         DebugMapRenderer debugMapRenderer,
         RealMapRenderer realMapRenderer,
         PlayerRenderer playerRenderer,
         MapObjectRenderer mapObjectRenderer,
         PauseMenuOverlay pauseMenuOverlay,
         DialogueOverlay dialogueOverlay,
-        PresentationMode presentationMode)
+        PresentationMode presentationMode,
+        Func<GameState, MapScene> mapSceneFactory)
     {
+        _sceneManager = sceneManager ?? throw new ArgumentNullException(nameof(sceneManager));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         GameState = gameState ?? throw new ArgumentNullException(nameof(gameState));
         _mapCollisionService = mapCollisionService ?? throw new ArgumentNullException(nameof(mapCollisionService));
+        _encounterService = encounterService ?? throw new ArgumentNullException(nameof(encounterService));
         _debugMapRenderer = debugMapRenderer ?? throw new ArgumentNullException(nameof(debugMapRenderer));
         _realMapRenderer = realMapRenderer ?? throw new ArgumentNullException(nameof(realMapRenderer));
         _playerRenderer = playerRenderer ?? throw new ArgumentNullException(nameof(playerRenderer));
@@ -61,6 +71,7 @@ public sealed class MapScene : IScene
         _pauseMenuOverlay = pauseMenuOverlay ?? throw new ArgumentNullException(nameof(pauseMenuOverlay));
         _dialogueOverlay = dialogueOverlay ?? throw new ArgumentNullException(nameof(dialogueOverlay));
         _presentationMode = presentationMode;
+        _mapSceneFactory = mapSceneFactory ?? throw new ArgumentNullException(nameof(mapSceneFactory));
 
         _mapStateResolver = new MapStateResolver();
         RuntimeMap = BuildRuntimeMap(GetCurrentMapDef());
@@ -174,6 +185,11 @@ public sealed class MapScene : IScene
         if (wasMoving && !_playerMapMover.IsMoving && _controlState == MapControlState.Normal)
         {
             TryStartStepOnInteraction();
+
+            if (_controlState == MapControlState.Normal)
+            {
+                TryStartRandomEncounter();
+            }
         }
 
         _previousKeyboardState = keyboardState;
@@ -392,6 +408,44 @@ public sealed class MapScene : IScene
         }
 
         return false;
+    }
+
+    private void TryStartRandomEncounter()
+    {
+        var encounter = _encounterService.TryTriggerEncounter(
+            GameState,
+            RuntimeMap.Definition,
+            _definitions);
+
+        if (encounter is null)
+        {
+            return;
+        }
+
+        StartBattle(encounter);
+    }
+
+    private void StartBattle(EncounterDef encounter)
+    {
+        if (encounter is null)
+        {
+            throw new ArgumentNullException(nameof(encounter));
+        }
+
+        _heldMoveDirection = null;
+        _nextHeldMoveAllowedTimeMs = 0.0;
+        _pauseMenuOverlay.Reset();
+        GameState.IsPaused = false;
+        _activeDialogue = null;
+
+        var battleScene = new BattleScene(
+            _sceneManager,
+            _definitions,
+            GameState,
+            encounter,
+            _mapSceneFactory);
+
+        _sceneManager.ChangeScene(SceneType.Battle, battleScene);
     }
 
     private void BeginMapTransition(string destinationMapId, string destinationSpawnId)

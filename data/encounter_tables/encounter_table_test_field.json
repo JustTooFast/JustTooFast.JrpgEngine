@@ -1,0 +1,9 @@
+{
+  "id": "encounter_table_test_field",
+  "entries": [
+    {
+      "encounterId": "encounter_slime_x2",
+      "weight": 100
+    }
+  ]
+}

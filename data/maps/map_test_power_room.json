@@ -4,6 +4,7 @@
   "width": 10,
   "height": 8,
   "tileSize": 32,
+  "encountersEnabled": false,
   "blockedTiles": [
     { "x": 0, "y": 0 },
     { "x": 1, "y": 0 },

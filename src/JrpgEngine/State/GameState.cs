@@ -32,6 +32,8 @@ public sealed class GameState
 
     public int PlayerTileY { get; set; }
 
+    public int EncounterSteps { get; set; }
+
     public FacingDirection Facing { get; set; }
 
     public PartyState Party { get; }
