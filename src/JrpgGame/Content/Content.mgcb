@@ -32,6 +32,18 @@
 /processorParam:TextureFormat=Color
 /build:Maps/map_test_town.png
 
+#begin Maps/map_test_town_overhead.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=False
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Maps/map_test_town_overhead.png
+
 #begin Maps/map_test_house.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -79,4 +91,3 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Maps/map_test_power_room_lit.png
-

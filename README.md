@@ -19,6 +19,10 @@ architectural separation between:
 
 This approach keeps the engine stable while gameplay systems are added.
 
+The engine currently supports classic JRPG presentation techniques such
+as **foreground / overhead map layers**, allowing characters to walk
+behind environmental elements like pillars, arches, and tree canopies.
+
 ------------------------------------------------------------------------
 
 # Design Philosophy
@@ -230,12 +234,26 @@ the executable application and assets live inside **JrpgGame**.
 
 # Current Status
 
-**Slice 5: Random Encounter Pipeline (Complete)**
+**Slice 5.1: Overhead Map Visual Support (Complete)**
 
-The engine now supports the core JRPG exploration loop by connecting
-map movement to battle encounters.
+The engine now supports a classic JRPG rendering technique that allows
+visual elements to appear **above the player and map objects**.
 
-The engine can currently:
+Maps may optionally define an **overhead visual PNG layer** which is
+drawn after gameplay actors.
+
+This enables environmental visuals such as:
+
+- tree canopies
+- building roofs
+- arches and bridges
+- cave ceilings
+- pillars and overhangs
+
+The overhead layer is **presentation-only** and does not affect gameplay
+logic, collision, or interactions.
+
+The engine currently supports:
 
 - Load game definitions from external JSON data
 - Start a new game from a title screen
@@ -255,18 +273,15 @@ The engine can currently:
 - Enable and disable map objects based on story flags
 - Render maps using a development debug renderer
 - Render maps using real visual assets through the MonoGame content pipeline
+- Render optional overhead visual layers above gameplay actors
 - Trigger random encounters based on player movement
 - Transition between exploration and battle scenes
 
 Movement remains **tile-based for gameplay** but **smoothly interpolated visually**.
 
-Slice 5 expands the gameplay loop:
+The current gameplay loop is:
 
 player → exploration → encounter → battle → return → exploration
-
-Slice 5 introduces **random encounters triggered by map movement** and
-adds the first **BattleScene**, connecting exploration gameplay to the
-battle system pipeline.
 
 ------------------------------------------------------------------------
 
@@ -335,6 +350,22 @@ MapCollisionService
 
 NPC tiles are treated as blocked tiles so players must stand adjacent to
 interact.
+
+### Map Visual Assets
+
+Maps may optionally define visual assets used by the real renderer.
+
+Supported fields:
+
+- `visualAssetId`
+- `overheadVisualAssetId`
+
+The base visual asset represents the map background.
+
+The optional overhead visual asset represents environmental elements
+that should render above gameplay actors.
+
+Both assets are loaded through the MonoGame content pipeline.
 
 ------------------------------------------------------------------------
 
@@ -677,9 +708,11 @@ view-only components.
 
 Current renderers include:
 
-DebugMapRenderer
-MapObjectRenderer
-PlayerRenderer
+DebugMapRenderer  
+RealMapRenderer  
+MapObjectRenderer  
+MapOverheadRenderer  
+PlayerRenderer  
 DialogueOverlay
 
 Rendering systems contain **no gameplay logic** and operate only on
@@ -707,21 +740,54 @@ collision, and object placement.
 
 Slice **4.75** introduces the first real map renderer.
 
-Maps may now reference visual assets loaded through the MonoGame content
+Maps may reference visual assets loaded through the MonoGame content
 pipeline.
 
-These assets are rendered as map backgrounds while gameplay objects and
-debug overlays continue to render above them.
+These assets are rendered as map backgrounds while gameplay actors
+continue to render above them.
+
+### Overhead Visual Layers
+
+Slice **5.1** adds support for optional **overhead map visuals**.
+
+A map may define an additional visual asset:
+
+`overheadVisualAssetId`
+
+This asset is rendered **after the player and map objects**, allowing
+environmental features to appear above gameplay actors.
+
+Typical uses include:
+
+- tree canopies
+- bridge tops
+- cave ceilings
+- roof overhangs
+- architectural details such as pillars or arches
+
+Overhead visuals are **purely presentation** and do not affect gameplay
+systems such as:
+
+- collision
+- interaction detection
+- object visibility
+
+Maps that do not define an overhead asset render exactly as before.
+
+### Presentation Modes
 
 The engine supports two presentation modes:
 
-Debug
+Debug  
 Real
 
-Switching presentation modes changes **how maps are drawn** but does not
-affect gameplay systems.
+Debug mode visualizes gameplay structure such as collision and object
+placement.
 
-Rendering contains **no gameplay logic**.
+Real mode renders authored map visuals through the MonoGame content
+pipeline.
+
+Overhead visuals are only rendered in **Real** presentation mode.
 
 ------------------------------------------------------------------------
 
@@ -830,10 +896,8 @@ Completed slices:
 - Slice 4.5 -- Map state variants and dynamic presentation
 - Slice 4.75 -- Map presentation cleanup and real map renderer
 - Slice 4.9 -- Engine / Game host separation
-
-Planned next slices:
-
-- Slice 5 -- Battle system foundation
+- Slice 5 -- Random encounter system
+- Slice 5.1 -- Overhead map visual layers
 
 ------------------------------------------------------------------------
 

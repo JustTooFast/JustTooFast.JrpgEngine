@@ -18,6 +18,8 @@ public sealed class MapDef
 
     public string? VisualAssetId { get; set; }
 
+    public string? OverheadVisualAssetId { get; set; }
+
     public bool EncountersEnabled { get; set; }
 
     public int EncounterRate { get; set; }
@@ -79,6 +81,8 @@ public sealed class MapStateVariantDef
     public bool ActiveWhenSet { get; set; } = true;
 
     public string? VisualAssetOverrideId { get; set; }
+
+    public string? OverheadVisualAssetOverrideId { get; set; }
 
     public List<string> EnableObjectIds { get; set; } = new();
 

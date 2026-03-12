@@ -11,11 +11,13 @@ public sealed class MapRuntime
     public MapRuntime(
         MapDef definition,
         string? activeVariantId = null,
-        string? visualAssetId = null)
+        string? visualAssetId = null,
+        string? overheadVisualAssetId = null)
     {
         Definition = definition ?? throw new ArgumentNullException(nameof(definition));
         ActiveVariantId = activeVariantId;
         VisualAssetId = visualAssetId;
+        OverheadVisualAssetId = overheadVisualAssetId;
     }
 
     public MapDef Definition { get; }
@@ -23,6 +25,8 @@ public sealed class MapRuntime
     public string? ActiveVariantId { get; }
 
     public string? VisualAssetId { get; }
+
+    public string? OverheadVisualAssetId { get; }
 
     public string MapId => Definition.Id;
 

@@ -1,6 +1,7 @@
 {
   "id": "map_test_town",
   "visualAssetId": "Maps/map_test_town",
+  "overheadVisualAssetId": "Maps/map_test_town_overhead",
   "width": 10,
   "height": 10,
   "tileSize": 32,
@@ -50,7 +51,9 @@
     { "x": 6, "y": 9 },
     { "x": 7, "y": 9 },
     { "x": 8, "y": 9 },
-    { "x": 9, "y": 9 }
+    { "x": 9, "y": 9 },
+
+    { "x": 5, "y": 5 }
   ],
   "spawns": [
     {

@@ -24,6 +24,7 @@ public sealed class MapScene : IScene
     private readonly PlayerMapMover _playerMapMover;
     private readonly DebugMapRenderer _debugMapRenderer;
     private readonly RealMapRenderer _realMapRenderer;
+    private readonly MapOverheadRenderer _mapOverheadRenderer;
     private readonly PlayerRenderer _playerRenderer;
     private readonly MapObjectRenderer _mapObjectRenderer;
     private readonly PresentationMode _presentationMode;
@@ -52,6 +53,7 @@ public sealed class MapScene : IScene
         EncounterService encounterService,
         DebugMapRenderer debugMapRenderer,
         RealMapRenderer realMapRenderer,
+        MapOverheadRenderer mapOverheadRenderer,
         PlayerRenderer playerRenderer,
         MapObjectRenderer mapObjectRenderer,
         PauseMenuOverlay pauseMenuOverlay,
@@ -66,6 +68,7 @@ public sealed class MapScene : IScene
         _encounterService = encounterService ?? throw new ArgumentNullException(nameof(encounterService));
         _debugMapRenderer = debugMapRenderer ?? throw new ArgumentNullException(nameof(debugMapRenderer));
         _realMapRenderer = realMapRenderer ?? throw new ArgumentNullException(nameof(realMapRenderer));
+        _mapOverheadRenderer = mapOverheadRenderer ?? throw new ArgumentNullException(nameof(mapOverheadRenderer));
         _playerRenderer = playerRenderer ?? throw new ArgumentNullException(nameof(playerRenderer));
         _mapObjectRenderer = mapObjectRenderer ?? throw new ArgumentNullException(nameof(mapObjectRenderer));
         _pauseMenuOverlay = pauseMenuOverlay ?? throw new ArgumentNullException(nameof(pauseMenuOverlay));
@@ -225,6 +228,11 @@ public sealed class MapScene : IScene
 
         var playerWorldPosition = _playerMapMover.GetVisualWorldPosition(GameState, RuntimeMap.TileSize);
         _playerRenderer.Draw(spriteBatch, playerWorldPosition, RuntimeMap.TileSize);
+
+        if (_presentationMode == PresentationMode.Real)
+        {
+            _mapOverheadRenderer.Draw(context);
+        }
 
         spriteBatch.End();
 
@@ -709,7 +717,8 @@ public sealed class MapScene : IScene
         return new MapRuntime(
             resolvedMapState.EffectiveMapDef,
             resolvedMapState.ActiveVariantId,
-            resolvedMapState.VisualAssetId);
+            resolvedMapState.VisualAssetId,
+            resolvedMapState.OverheadVisualAssetId);
     }
 
     private void RefreshCurrentMapState()
