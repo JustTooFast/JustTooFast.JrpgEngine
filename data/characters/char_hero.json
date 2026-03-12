@@ -1,5 +1,5 @@
 {
   "id": "char_hero",
   "name": "Hero",
-  "mapVisualId": "debug_hero"
+  "visualAssetId": "Sprites/debug_player_orientation"
 }

@@ -20,8 +20,9 @@ architectural separation between:
 This approach keeps the engine stable while gameplay systems are added.
 
 The engine currently supports classic JRPG presentation techniques such
-as **foreground / overhead map layers**, allowing characters to walk
-behind environmental elements like pillars, arches, and tree canopies.
+as **foreground / overhead map layers** and **directional player sprite
+rendering**, allowing characters to walk behind environmental elements
+like pillars, arches, tree canopies, and roof overhangs.
 
 ------------------------------------------------------------------------
 
@@ -234,10 +235,12 @@ the executable application and assets live inside **JrpgGame**.
 
 # Current Status
 
-**Slice 5.1: Overhead Map Visual Support (Complete)**
+**Slice 5.2: Real Player Sprite Rendering (4-Direction, Non-Animated) — Complete**
 
 The engine now supports a classic JRPG rendering technique that allows
-visual elements to appear **above the player and map objects**.
+visual elements to appear **above the player and map objects**, while
+also allowing the player to render as a real directional sprite in
+**Real** presentation mode.
 
 Maps may optionally define an **overhead visual PNG layer** which is
 drawn after gameplay actors.
@@ -274,6 +277,8 @@ The engine currently supports:
 - Render maps using a development debug renderer
 - Render maps using real visual assets through the MonoGame content pipeline
 - Render optional overhead visual layers above gameplay actors
+- Render the player as a real 4-direction sprite in Real presentation mode
+- Preserve the original debug player marker in Debug presentation mode
 - Trigger random encounters based on player movement
 - Transition between exploration and battle scenes
 
@@ -708,11 +713,14 @@ view-only components.
 
 Current renderers include:
 
-DebugMapRenderer  
-RealMapRenderer  
+DebugMapBackgroundRenderer  
+RealMapBackgroundRenderer  
+MapBackgroundRenderer  
 MapObjectRenderer  
-MapOverheadRenderer  
+DebugPlayerRenderer  
+RealPlayerRenderer  
 PlayerRenderer  
+MapOverheadRenderer  
 DialogueOverlay
 
 Rendering systems contain **no gameplay logic** and operate only on
@@ -738,7 +746,7 @@ collision, and object placement.
 
 ### Real Map Rendering
 
-Slice **4.75** introduces the first real map renderer.
+Slice **4.75** introduced the first real map renderer.
 
 Maps may reference visual assets loaded through the MonoGame content
 pipeline.
@@ -774,6 +782,51 @@ systems such as:
 
 Maps that do not define an overhead asset render exactly as before.
 
+### Player Sprite Rendering
+
+Slice **5.2** adds real player sprite rendering in **Real** presentation
+mode while preserving the original debug player marker in **Debug**
+presentation mode.
+
+The player sprite uses a directional sprite sheet layout with:
+
+- 4 rows for directions
+- 3 columns reserved for animation frames
+
+Current direction mapping:
+
+- Row 0 → Down
+- Row 1 → Left
+- Row 2 → Right
+- Row 3 → Up
+
+For Slice 5.2 only the first frame column is used.
+
+The sprite sheet contract currently assumes:
+
+- FrameWidth = 32
+- FrameHeight = 32
+- FramesPerDirection = 3
+
+This produces a full sheet size of:
+
+- Width = 96
+- Height = 128
+
+Character definitions reference the player map sprite through:
+
+`visualAssetId`
+
+Example:
+
+    {
+      "id": "char_hero",
+      "name": "Hero",
+      "visualAssetId": "Sprites/debug_player_orientation"
+    }
+
+The player shown on the map is still the **party leader**.
+
 ### Presentation Modes
 
 The engine supports two presentation modes:
@@ -785,9 +838,54 @@ Debug mode visualizes gameplay structure such as collision and object
 placement.
 
 Real mode renders authored map visuals through the MonoGame content
-pipeline.
+pipeline and renders the player as a directional sprite.
 
 Overhead visuals are only rendered in **Real** presentation mode.
+
+### Render Order
+
+The layered map draw flow is:
+
+1. Map background
+2. Map objects
+3. Player
+4. Map overhead
+
+This keeps map presentation isolated from gameplay logic while allowing
+the player to move visually behind overhead scenery.
+
+------------------------------------------------------------------------
+
+## Player Sprite Content
+
+Concrete sprite assets belong to the **JrpgGame** host project and are
+loaded through the MonoGame content pipeline.
+
+Typical location:
+
+`src/JrpgGame/Content/Sprites`
+
+Character map visuals are referenced from character data using
+`visualAssetId`.
+
+Example:
+
+    {
+      "id": "char_hero",
+      "name": "Hero",
+      "visualAssetId": "Sprites/debug_player_orientation"
+    }
+
+The asset path in JSON should match the MonoGame content asset name and
+should not include the `.png` extension.
+
+A development-oriented diagnostic sprite sheet such as
+`debug_player_orientation.png` can be useful for verifying:
+
+- facing-direction row mapping
+- frame selection
+- sprite alignment
+- future animation frame indexing
 
 ------------------------------------------------------------------------
 
@@ -859,6 +957,8 @@ This directory contains assets processed by the MonoGame content
 pipeline, including:
 
 - map visual assets
+- overhead visual assets
+- player sprite sheets
 - fonts
 - other presentation assets
 
@@ -898,6 +998,7 @@ Completed slices:
 - Slice 4.9 -- Engine / Game host separation
 - Slice 5 -- Random encounter system
 - Slice 5.1 -- Overhead map visual layers
+- Slice 5.2 -- Real player sprite rendering (4-direction, non-animated)
 
 ------------------------------------------------------------------------
 

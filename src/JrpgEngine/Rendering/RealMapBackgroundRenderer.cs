@@ -7,11 +7,11 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public sealed class RealMapRenderer : IMapBackgroundRenderer
+public sealed class RealMapBackgroundRenderer : IMapBackgroundRenderer
 {
-    private readonly IMapVisualTextureStore _visualTextureStore;
+    private readonly IVisualTextureStore _visualTextureStore;
 
-    public RealMapRenderer(IMapVisualTextureStore visualTextureStore)
+    public RealMapBackgroundRenderer(IVisualTextureStore visualTextureStore)
     {
         _visualTextureStore = visualTextureStore ?? throw new ArgumentNullException(nameof(visualTextureStore));
     }

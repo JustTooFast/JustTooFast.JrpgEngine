@@ -6,5 +6,5 @@
   "startingPartyMemberIds": [
     "char_hero"
   ],
-  "presentationMode": "Real"
+  "presentationMode": "Debug"
 }

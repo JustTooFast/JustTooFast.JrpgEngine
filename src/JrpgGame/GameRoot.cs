@@ -32,12 +32,12 @@ public sealed class GameRoot : Game
 
     private Texture2D? _debugPixel;
     private SpriteFont? _debugFont;
-    private DebugMapRenderer? _debugMapRenderer;
-    private RealMapRenderer? _realMapRenderer;
+
+    private IVisualTextureStore? _visualTextureStore;
+    private IMapBackgroundRenderer? _mapBackgroundRenderer;
     private MapOverheadRenderer? _mapOverheadRenderer;
-    private PlayerRenderer? _playerRenderer;
+    private IPlayerRenderer? _playerRenderer;
     private MapObjectRenderer? _mapObjectRenderer;
-    private MapVisualTextureStore? _mapVisualTextureStore;
     private PauseMenuOverlay? _pauseMenuOverlay;
     private DialogueOverlay? _dialogueOverlay;
 
@@ -56,15 +56,6 @@ public sealed class GameRoot : Game
         _debugPixel = DebugTextureFactory.CreateSolidTexture(GraphicsDevice, Color.White);
         _debugFont = Content.Load<SpriteFont>("Fonts/DebugFont");
 
-        _debugMapRenderer = new DebugMapRenderer(_debugPixel);
-        _mapVisualTextureStore = new MapVisualTextureStore(Content);
-        _realMapRenderer = new RealMapRenderer(_mapVisualTextureStore);
-        _mapOverheadRenderer = new MapOverheadRenderer(_mapVisualTextureStore);
-        _playerRenderer = new PlayerRenderer(_debugPixel);
-        _mapObjectRenderer = new MapObjectRenderer(_debugPixel);
-        _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
-        _dialogueOverlay = new DialogueOverlay(_debugPixel, _debugFont);
-
         var dataRoot = ResolveDataRoot();
 
         _definitions = DefinitionLoader.LoadAll(dataRoot);
@@ -73,6 +64,38 @@ public sealed class GameRoot : Game
         _mapCollisionService = new MapCollisionService();
         _encounterService = new EncounterService();
         _sceneManager = new SceneManager();
+
+        _visualTextureStore = new VisualTextureStore(Content);
+
+        var debugMapBackgroundRenderer = new DebugMapBackgroundRenderer(_debugPixel);
+        var realMapBackgroundRenderer = new RealMapBackgroundRenderer(_visualTextureStore);
+
+        _mapBackgroundRenderer = new MapBackgroundRenderer(
+            _definitions.GameConfig.PresentationMode,
+            debugMapBackgroundRenderer,
+            realMapBackgroundRenderer);
+
+        _mapOverheadRenderer = new MapOverheadRenderer(_visualTextureStore);
+
+        var characterSpriteSheetLayout = new CharacterSpriteSheetLayout(
+            frameWidth: 32,
+            frameHeight: 32,
+            framesPerDirection: 3);
+
+        var debugPlayerRenderer = new DebugPlayerRenderer(_debugPixel);
+        var realPlayerRenderer = new RealPlayerRenderer(
+            _visualTextureStore,
+            _definitions,
+            characterSpriteSheetLayout);
+
+        _playerRenderer = new PlayerRenderer(
+            _definitions.GameConfig.PresentationMode,
+            debugPlayerRenderer,
+            realPlayerRenderer);
+
+        _mapObjectRenderer = new MapObjectRenderer(_debugPixel);
+        _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
+        _dialogueOverlay = new DialogueOverlay(_debugPixel, _debugFont);
 
         var titleScene = new TitleScene(
             _sceneManager,
@@ -158,14 +181,9 @@ public sealed class GameRoot : Game
             throw new InvalidOperationException("EncounterService has not been initialized.");
         }
 
-        if (_debugMapRenderer is null)
+        if (_mapBackgroundRenderer is null)
         {
-            throw new InvalidOperationException("DebugMapRenderer has not been initialized.");
-        }
-
-        if (_realMapRenderer is null)
-        {
-            throw new InvalidOperationException("RealMapRenderer has not been initialized.");
+            throw new InvalidOperationException("MapBackgroundRenderer has not been initialized.");
         }
 
         if (_mapOverheadRenderer is null)
@@ -199,8 +217,7 @@ public sealed class GameRoot : Game
             gameState,
             _mapCollisionService,
             _encounterService,
-            _debugMapRenderer,
-            _realMapRenderer,
+            _mapBackgroundRenderer,
             _mapOverheadRenderer,
             _playerRenderer,
             _mapObjectRenderer,
