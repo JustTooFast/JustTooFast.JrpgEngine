@@ -9,9 +9,9 @@ namespace JustTooFast.JrpgEngine.Rendering;
 
 public sealed class MapOverheadRenderer
 {
-    private readonly IMapVisualTextureStore _visualTextureStore;
+    private readonly IVisualTextureStore _visualTextureStore;
 
-    public MapOverheadRenderer(IMapVisualTextureStore visualTextureStore)
+    public MapOverheadRenderer(IVisualTextureStore visualTextureStore)
     {
         _visualTextureStore = visualTextureStore ?? throw new ArgumentNullException(nameof(visualTextureStore));
     }

@@ -586,6 +586,12 @@ public static class DefinitionLoader
                 throw new InvalidOperationException(
                     $"Character '{characterId}' must have a non-empty Name.");
             }
+
+            if (string.IsNullOrWhiteSpace(characterDef.VisualAssetId))
+            {
+                throw new InvalidOperationException(
+                    $"Character '{characterId}' must have a non-empty VisualAssetId.");
+            }
         }
     }
 

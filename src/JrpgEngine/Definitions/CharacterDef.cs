@@ -9,6 +9,5 @@ public sealed class CharacterDef
 
     public string Name { get; set; } = string.Empty;
 
-    // Temporary visual reference for Slice 1 map rendering
-    public string MapVisualId { get; set; } = string.Empty;
+    public string VisualAssetId { get; set; } = string.Empty;
 }

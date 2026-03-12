@@ -5,14 +5,14 @@ using System;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public sealed class PlayerRenderer : IPlayerRenderer
+public sealed class MapBackgroundRenderer : IMapBackgroundRenderer
 {
-    private readonly IPlayerRenderer _innerRenderer;
+    private readonly IMapBackgroundRenderer _innerRenderer;
 
-    public PlayerRenderer(
+    public MapBackgroundRenderer(
         PresentationMode presentationMode,
-        IPlayerRenderer debugRenderer,
-        IPlayerRenderer realRenderer)
+        IMapBackgroundRenderer debugRenderer,
+        IMapBackgroundRenderer realRenderer)
     {
         if (debugRenderer is null)
         {
@@ -35,7 +35,7 @@ public sealed class PlayerRenderer : IPlayerRenderer
         };
     }
 
-    public void Draw(PlayerRenderContext context)
+    public void Draw(MapSceneRenderContext context)
     {
         if (context is null)
         {

@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public interface IMapVisualTextureStore
+public interface IVisualTextureStore
 {
     Texture2D GetRequired(string visualAssetId);
 }

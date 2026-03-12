@@ -8,11 +8,11 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public sealed class DebugMapRenderer : IMapBackgroundRenderer
+public sealed class DebugMapBackgroundRenderer : IMapBackgroundRenderer
 {
     private readonly Texture2D _pixel;
 
-    public DebugMapRenderer(Texture2D pixel)
+    public DebugMapBackgroundRenderer(Texture2D pixel)
     {
         _pixel = pixel ?? throw new ArgumentNullException(nameof(pixel));
     }

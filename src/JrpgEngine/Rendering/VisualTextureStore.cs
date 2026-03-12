@@ -8,12 +8,12 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public sealed class MapVisualTextureStore : IMapVisualTextureStore
+public sealed class VisualTextureStore : IVisualTextureStore
 {
     private readonly ContentManager _content;
     private readonly Dictionary<string, Texture2D> _cache = new(StringComparer.Ordinal);
 
-    public MapVisualTextureStore(ContentManager content)
+    public VisualTextureStore(ContentManager content)
     {
         _content = content ?? throw new ArgumentNullException(nameof(content));
     }
