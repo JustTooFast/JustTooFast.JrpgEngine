@@ -34,6 +34,7 @@ public sealed class GameRoot : Game
     private SpriteFont? _debugFont;
     private DebugMapRenderer? _debugMapRenderer;
     private RealMapRenderer? _realMapRenderer;
+    private MapOverheadRenderer? _mapOverheadRenderer;
     private PlayerRenderer? _playerRenderer;
     private MapObjectRenderer? _mapObjectRenderer;
     private MapVisualTextureStore? _mapVisualTextureStore;
@@ -58,6 +59,7 @@ public sealed class GameRoot : Game
         _debugMapRenderer = new DebugMapRenderer(_debugPixel);
         _mapVisualTextureStore = new MapVisualTextureStore(Content);
         _realMapRenderer = new RealMapRenderer(_mapVisualTextureStore);
+        _mapOverheadRenderer = new MapOverheadRenderer(_mapVisualTextureStore);
         _playerRenderer = new PlayerRenderer(_debugPixel);
         _mapObjectRenderer = new MapObjectRenderer(_debugPixel);
         _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
@@ -166,6 +168,11 @@ public sealed class GameRoot : Game
             throw new InvalidOperationException("RealMapRenderer has not been initialized.");
         }
 
+        if (_mapOverheadRenderer is null)
+        {
+            throw new InvalidOperationException("MapOverheadRenderer has not been initialized.");
+        }
+
         if (_playerRenderer is null)
         {
             throw new InvalidOperationException("PlayerRenderer has not been initialized.");
@@ -194,6 +201,7 @@ public sealed class GameRoot : Game
             _encounterService,
             _debugMapRenderer,
             _realMapRenderer,
+            _mapOverheadRenderer,
             _playerRenderer,
             _mapObjectRenderer,
             _pauseMenuOverlay,

@@ -30,10 +30,15 @@ public sealed class MapStateResolver
             ? sourceMap.VisualAssetId
             : activeVariant.VisualAssetOverrideId;
 
+        var overheadVisualAssetId = string.IsNullOrWhiteSpace(activeVariant?.OverheadVisualAssetOverrideId)
+            ? sourceMap.OverheadVisualAssetId
+            : activeVariant.OverheadVisualAssetOverrideId;
+
         return new ResolvedMapState(
             effectiveMapDef,
             activeVariant?.Id,
-            visualAssetId);
+            visualAssetId,
+            overheadVisualAssetId);
     }
 
     private static MapStateVariantDef? ResolveActiveVariant(MapDef mapDef, StoryFlagState storyFlags)
@@ -133,6 +138,7 @@ public sealed class MapStateResolver
             Height = sourceMap.Height,
             TileSize = sourceMap.TileSize,
             VisualAssetId = sourceMap.VisualAssetId,
+            OverheadVisualAssetId = sourceMap.OverheadVisualAssetId,
             EncountersEnabled = sourceMap.EncountersEnabled,
             EncounterRate = sourceMap.EncounterRate,
             EncounterTableId = sourceMap.EncounterTableId,
