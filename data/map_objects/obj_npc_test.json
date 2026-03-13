@@ -1,0 +1,6 @@
+{
+  "id": "obj_npc_test",
+  "type": "Npc",
+  "blocksMovement": true,
+  "visualId": "vis_npc_test"
+}

@@ -25,7 +25,7 @@ public sealed class MapScene : IScene
     private readonly IMapBackgroundRenderer _mapBackgroundRenderer;
     private readonly MapOverheadRenderer _mapOverheadRenderer;
     private readonly IPlayerRenderer _playerRenderer;
-    private readonly MapObjectRenderer _mapObjectRenderer;
+    private readonly IMapObjectRenderer _mapObjectRenderer;
     private readonly PresentationMode _presentationMode;
     private readonly PauseMenuOverlay _pauseMenuOverlay;
     private readonly DialogueOverlay _dialogueOverlay;
@@ -53,7 +53,7 @@ public sealed class MapScene : IScene
         IMapBackgroundRenderer mapBackgroundRenderer,
         MapOverheadRenderer mapOverheadRenderer,
         IPlayerRenderer playerRenderer,
-        MapObjectRenderer mapObjectRenderer,
+        IMapObjectRenderer mapObjectRenderer,
         PauseMenuOverlay pauseMenuOverlay,
         DialogueOverlay dialogueOverlay,
         PresentationMode presentationMode,
@@ -395,7 +395,7 @@ public sealed class MapScene : IScene
         TryStartInteraction(currentObject);
     }
 
-    private bool TryStartInteraction(MapObjectDef mapObject)
+    private bool TryStartInteraction(MapObjectPlacementDef mapObject)
     {
         var result = _interactionRunner.TryStart(mapObject.InteractionId);
         if (!result.Started)
@@ -519,13 +519,13 @@ public sealed class MapScene : IScene
         _controlState = MapControlState.Normal;
     }
 
-    private MapObjectDef? TryGetFrontObject()
+    private MapObjectPlacementDef? TryGetFrontObject()
     {
         var frontTile = GetPlayerTile() + GetDirectionOffset(GameState.Facing);
         return TryGetObjectAtTile(frontTile);
     }
 
-    private MapObjectDef? TryGetObjectAtTile(TileCoord tile)
+    private MapObjectPlacementDef? TryGetObjectAtTile(TileCoord tile)
     {
         foreach (var mapObject in RuntimeMap.Definition.Objects)
         {
@@ -607,7 +607,18 @@ public sealed class MapScene : IScene
         }
 
         var mapObject = TryGetObjectAtTile(tile);
-        if (mapObject is null || !mapObject.BlocksMovement)
+        if (mapObject is null)
+        {
+            return true;
+        }
+
+        if (!_definitions.MapObjects.TryGetValue(mapObject.MapObjectDefId, out var mapObjectDef))
+        {
+            throw new InvalidOperationException(
+                $"Map object placement '{mapObject.Id}' references unknown map object def '{mapObject.MapObjectDefId}'.");
+        }
+
+        if (!mapObjectDef.BlocksMovement)
         {
             return true;
         }

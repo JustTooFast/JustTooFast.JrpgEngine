@@ -9,5 +9,5 @@ public sealed class CharacterDef
 
     public string Name { get; set; } = string.Empty;
 
-    public string VisualAssetId { get; set; } = string.Empty;
+    public string VisualId { get; set; } = string.Empty;
 }

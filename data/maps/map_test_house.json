@@ -55,10 +55,9 @@
   "objects": [
     {
       "id": "exit_house_return_01",
-      "type": "MapExit",
       "x": 4,
       "y": 6,
-      "blocksMovement": false,
+      "mapObjectDefId": "obj_exit_test",
       "interactionId": "int_test_exit_to_town_01"
     }
   ]

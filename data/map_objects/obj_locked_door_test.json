@@ -1,0 +1,6 @@
+{
+  "id": "obj_locked_door_test",
+  "type": "LockedDoor",
+  "blocksMovement": true,
+  "visualId": "vis_locked_door_test"
+}

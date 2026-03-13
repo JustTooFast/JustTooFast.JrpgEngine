@@ -1,0 +1,8 @@
+{
+  "id": "vis_exit_test",
+  "visualAssetId": "Objects/exit_test",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 1,
+  "facingDirections": 1
+}

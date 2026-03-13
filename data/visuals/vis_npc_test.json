@@ -1,0 +1,8 @@
+{
+  "id": "vis_npc_test",
+  "visualAssetId": "Objects/npc_test",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 1,
+  "facingDirections": 1
+}

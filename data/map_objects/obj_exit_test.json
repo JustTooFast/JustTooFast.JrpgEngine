@@ -1,0 +1,6 @@
+{
+  "id": "obj_exit_test",
+  "type": "MapExit",
+  "blocksMovement": false,
+  "visualId": "vis_exit_test"
+}
