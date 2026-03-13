@@ -104,7 +104,12 @@ public sealed class PauseMenuOverlay
         var resumeBounds = new Rectangle(panelBounds.X + 20, panelBounds.Y + 30, panelBounds.Width - 40, 32);
         var titleBounds = new Rectangle(panelBounds.X + 20, panelBounds.Y + 75, panelBounds.Width - 40, 32);
 
-        spriteBatch.Begin();
+        spriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            RasterizerState.CullNone);
 
         spriteBatch.Draw(_pixel, screenBounds, Color.Black * 0.45f);
         spriteBatch.Draw(_pixel, panelBounds, Color.DarkSlateGray);

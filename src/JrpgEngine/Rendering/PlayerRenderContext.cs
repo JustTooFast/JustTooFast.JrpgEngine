@@ -13,6 +13,7 @@ public sealed class PlayerRenderContext
     public PlayerRenderContext(
         SpriteBatch spriteBatch,
         Vector2 worldPosition,
+        Vector2 screenPosition,
         int tileSize,
         FacingDirection facingDirection,
         string leaderCharacterId)
@@ -30,6 +31,7 @@ public sealed class PlayerRenderContext
         }
 
         WorldPosition = worldPosition;
+        ScreenPosition = screenPosition;
         TileSize = tileSize;
         FacingDirection = facingDirection;
         LeaderCharacterId = leaderCharacterId;
@@ -38,6 +40,8 @@ public sealed class PlayerRenderContext
     public SpriteBatch SpriteBatch { get; }
 
     public Vector2 WorldPosition { get; }
+
+    public Vector2 ScreenPosition { get; }
 
     public int TileSize { get; }
 

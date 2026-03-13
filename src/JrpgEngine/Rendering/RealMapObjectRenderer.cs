@@ -3,7 +3,6 @@
 
 using System;
 using JustTooFast.JrpgEngine.Definitions;
-using JustTooFast.JrpgEngine.Maps;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -22,21 +21,16 @@ public sealed class RealMapObjectRenderer : IMapObjectRenderer
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
     }
 
-    public void Draw(SpriteBatch spriteBatch, MapRuntime mapRuntime)
+    public void Draw(MapSceneRenderContext context)
     {
-        if (spriteBatch is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(spriteBatch));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (mapRuntime is null)
-        {
-            throw new ArgumentNullException(nameof(mapRuntime));
-        }
+        var tileSize = context.RuntimeMap.TileSize;
 
-        var tileSize = mapRuntime.TileSize;
-
-        foreach (var mapObject in mapRuntime.Definition.Objects)
+        foreach (var mapObject in context.RuntimeMap.Definition.Objects)
         {
             if (!_definitions.MapObjects.TryGetValue(mapObject.MapObjectDefId, out var mapObjectDef))
             {
@@ -58,13 +52,15 @@ public sealed class RealMapObjectRenderer : IMapObjectRenderer
             var texture = _visualTextureStore.GetRequired(visualDef.VisualAssetId);
             var sourceRect = VisualSourceRectHelper.GetSourceRect(visualDef, row: 0, frameIndex: 0);
 
-            var destinationRect = new Rectangle(
+            var worldRect = new Rectangle(
                 mapObject.X * tileSize,
                 mapObject.Y * tileSize,
                 tileSize,
                 tileSize);
 
-            spriteBatch.Draw(texture, destinationRect, sourceRect, Color.White);
+            var destinationRect = context.WorldToScreen(worldRect);
+
+            context.SpriteBatch.Draw(texture, destinationRect, sourceRect, Color.White);
         }
     }
 }

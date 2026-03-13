@@ -45,8 +45,8 @@ public sealed class RealPlayerRenderer : IPlayerRenderer
         var sourceRect = VisualSourceRectHelper.GetSourceRect(visualDef, row, frameIndex: 0);
 
         var destinationRect = new Rectangle(
-            (int)context.WorldPosition.X,
-            (int)context.WorldPosition.Y,
+            (int)MathF.Round(context.ScreenPosition.X),
+            (int)MathF.Round(context.ScreenPosition.Y),
             context.TileSize,
             context.TileSize);
 

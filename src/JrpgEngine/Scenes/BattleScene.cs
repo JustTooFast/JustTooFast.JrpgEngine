@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using JustTooFast.JrpgEngine.Core;
 using JustTooFast.JrpgEngine.Definitions;
+using JustTooFast.JrpgEngine.Rendering;
 using JustTooFast.JrpgEngine.State;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -23,6 +24,7 @@ public sealed class BattleScene : IScene
     private readonly List<EnemyDef> _enemies = new();
 
     private KeyboardState _previousKeyboardState;
+    private Texture2D? _backgroundPixel;
 
     public BattleScene(
         SceneManager sceneManager,
@@ -66,7 +68,7 @@ public sealed class BattleScene : IScene
         _previousKeyboardState = keyboardState;
     }
 
-    public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
+    public void DrawWorld(GameTime gameTime, SpriteBatch spriteBatch)
     {
         if (gameTime is null)
         {
@@ -78,9 +80,8 @@ public sealed class BattleScene : IScene
             throw new ArgumentNullException(nameof(spriteBatch));
         }
 
-        // Keep Slice 5 presentation minimal.
-        // GameRoot can distinguish this scene with a different clear color.
-        // We still open/end a SpriteBatch so the scene is structurally complete.
+        EnsureBackgroundPixel(spriteBatch.GraphicsDevice);
+
         spriteBatch.Begin(
             SpriteSortMode.Deferred,
             BlendState.AlphaBlend,
@@ -88,7 +89,16 @@ public sealed class BattleScene : IScene
             DepthStencilState.None,
             RasterizerState.CullNone);
 
+        spriteBatch.Draw(
+            _backgroundPixel!,
+            new Rectangle(0, 0, PresentationSurface.InternalWidth, PresentationSurface.InternalHeight),
+            Color.DarkRed);
+
         spriteBatch.End();
+    }
+
+    public void DrawUi(GameTime gameTime, SpriteBatch spriteBatch)
+    {
     }
 
     private void ResolveEncounterEnemies()
@@ -130,5 +140,21 @@ public sealed class BattleScene : IScene
             !_previousKeyboardState.IsKeyDown(alternate);
 
         return primaryPressed || alternatePressed;
+    }
+
+    private void EnsureBackgroundPixel(GraphicsDevice graphicsDevice)
+    {
+        if (graphicsDevice is null)
+        {
+            throw new ArgumentNullException(nameof(graphicsDevice));
+        }
+
+        if (_backgroundPixel is not null && !_backgroundPixel.IsDisposed)
+        {
+            return;
+        }
+
+        _backgroundPixel = new Texture2D(graphicsDevice, 1, 1);
+        _backgroundPixel.SetData(new[] { Color.White });
     }
 }

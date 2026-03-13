@@ -18,7 +18,9 @@ public sealed class PlayerMapMover
 
     public float MoveProgress { get; private set; }
 
-    public float MoveDurationSeconds { get; set; } = 0.18f;
+    public float MoveDurationSeconds { get; set; } = 0.28f;
+
+    public FacingDirection CurrentMoveDirection { get; private set; } = FacingDirection.Down;
 
     public void InitializeFromGameState(GameState gameState)
     {
@@ -33,6 +35,7 @@ public sealed class PlayerMapMover
         MoveFromTile = currentTile;
         MoveToTile = currentTile;
         MoveProgress = 0f;
+        CurrentMoveDirection = gameState.Facing;
     }
 
     public void Update(GameTime gameTime, GameState gameState, MapDef mapDef)
@@ -84,6 +87,7 @@ public sealed class PlayerMapMover
         }
 
         gameState.Facing = direction;
+        CurrentMoveDirection = direction;
 
         var currentTile = new TileCoord(gameState.PlayerTileX, gameState.PlayerTileY);
         var destinationTile = currentTile + GetDirectionOffset(direction);

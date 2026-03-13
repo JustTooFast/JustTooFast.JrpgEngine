@@ -3,7 +3,6 @@
 
 using System;
 using JustTooFast.JrpgEngine.Definitions;
-using JustTooFast.JrpgEngine.Maps;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -20,20 +19,16 @@ public sealed class DebugMapObjectRenderer : IMapObjectRenderer
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
     }
 
-    public void Draw(SpriteBatch spriteBatch, MapRuntime mapRuntime)
+    public void Draw(MapSceneRenderContext context)
     {
-        if (spriteBatch is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(spriteBatch));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (mapRuntime is null)
-        {
-            throw new ArgumentNullException(nameof(mapRuntime));
-        }
-
-        var mapDef = mapRuntime.Definition;
-        var tileSize = mapRuntime.TileSize;
+        var spriteBatch = context.SpriteBatch;
+        var mapDef = context.RuntimeMap.Definition;
+        var tileSize = context.RuntimeMap.TileSize;
 
         foreach (var mapObject in mapDef.Objects)
         {
@@ -43,39 +38,42 @@ public sealed class DebugMapObjectRenderer : IMapObjectRenderer
                     $"Map object placement '{mapObject.Id}' references unknown map object def '{mapObject.MapObjectDefId}'.");
             }
 
+            var screenX = (int)MathF.Round((mapObject.X * tileSize) - context.CameraWorldPosition.X);
+            var screenY = (int)MathF.Round((mapObject.Y * tileSize) - context.CameraWorldPosition.Y);
+
             if (string.Equals(mapObjectDef.Type, "Npc", StringComparison.Ordinal))
             {
-                DrawNpc(spriteBatch, mapObject.X, mapObject.Y, tileSize);
+                DrawNpc(spriteBatch, screenX, screenY, tileSize);
                 continue;
             }
 
             if (string.Equals(mapObjectDef.Type, "Chest", StringComparison.Ordinal))
             {
-                DrawChest(spriteBatch, mapObject.X, mapObject.Y, tileSize);
+                DrawChest(spriteBatch, screenX, screenY, tileSize);
                 continue;
             }
 
             if (string.Equals(mapObjectDef.Type, "LockedDoor", StringComparison.Ordinal) ||
                 string.Equals(mapObjectDef.Type, "FlagGate", StringComparison.Ordinal))
             {
-                DrawGate(spriteBatch, mapObject.X, mapObject.Y, tileSize);
+                DrawGate(spriteBatch, screenX, screenY, tileSize);
                 continue;
             }
 
             if (string.Equals(mapObjectDef.Type, "MapExit", StringComparison.Ordinal))
             {
-                DrawExit(spriteBatch, mapObject.X, mapObject.Y, tileSize);
+                DrawExit(spriteBatch, screenX, screenY, tileSize);
             }
         }
     }
 
-    private void DrawNpc(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)
+    private void DrawNpc(SpriteBatch spriteBatch, int screenX, int screenY, int tileSize)
     {
         var inset = Math.Max(4, tileSize / 8);
 
         var bounds = new Rectangle(
-            (tileX * tileSize) + inset,
-            (tileY * tileSize) + inset,
+            screenX + inset,
+            screenY + inset,
             tileSize - (inset * 2),
             tileSize - (inset * 2));
 
@@ -83,14 +81,14 @@ public sealed class DebugMapObjectRenderer : IMapObjectRenderer
         DrawRectOutline(spriteBatch, bounds, 2, Color.Black);
     }
 
-    private void DrawChest(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)
+    private void DrawChest(SpriteBatch spriteBatch, int screenX, int screenY, int tileSize)
     {
         var insetX = Math.Max(3, tileSize / 10);
         var insetY = Math.Max(6, tileSize / 5);
 
         var bounds = new Rectangle(
-            (tileX * tileSize) + insetX,
-            (tileY * tileSize) + insetY,
+            screenX + insetX,
+            screenY + insetY,
             tileSize - (insetX * 2),
             tileSize - (insetY + insetX));
 
@@ -111,13 +109,13 @@ public sealed class DebugMapObjectRenderer : IMapObjectRenderer
         spriteBatch.Draw(_pixel, latch, Color.Black);
     }
 
-    private void DrawGate(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)
+    private void DrawGate(SpriteBatch spriteBatch, int screenX, int screenY, int tileSize)
     {
         var inset = Math.Max(2, tileSize / 12);
 
         var bounds = new Rectangle(
-            (tileX * tileSize) + inset,
-            (tileY * tileSize) + inset,
+            screenX + inset,
+            screenY + inset,
             tileSize - (inset * 2),
             tileSize - (inset * 2));
 
@@ -132,13 +130,13 @@ public sealed class DebugMapObjectRenderer : IMapObjectRenderer
         spriteBatch.Draw(_pixel, rightBar, Color.Black);
     }
 
-    private void DrawExit(SpriteBatch spriteBatch, int tileX, int tileY, int tileSize)
+    private void DrawExit(SpriteBatch spriteBatch, int screenX, int screenY, int tileSize)
     {
         var inset = Math.Max(4, tileSize / 8);
 
         var bounds = new Rectangle(
-            (tileX * tileSize) + inset,
-            (tileY * tileSize) + inset,
+            screenX + inset,
+            screenY + inset,
             tileSize - (inset * 2),
             tileSize - (inset * 2));
 

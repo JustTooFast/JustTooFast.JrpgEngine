@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using JustTooFast.JrpgEngine.Scenes;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -10,11 +9,9 @@ namespace JustTooFast.JrpgEngine.Core;
 
 public sealed class SceneManager
 {
-    private IScene? _currentScene;
+    public IScene? CurrentScene { get; private set; }
 
-    public IScene? CurrentScene => _currentScene;
-
-    public SceneType? CurrentSceneType { get; private set; }
+    public SceneType CurrentSceneType { get; private set; }
 
     public void ChangeScene(SceneType sceneType, IScene newScene)
     {
@@ -23,21 +20,26 @@ public sealed class SceneManager
             throw new ArgumentNullException(nameof(newScene));
         }
 
-        _currentScene?.Exit();
+        CurrentScene?.Exit();
 
-        _currentScene = newScene;
+        CurrentScene = newScene;
         CurrentSceneType = sceneType;
 
-        _currentScene.Enter();
+        CurrentScene.Enter();
     }
 
     public void Update(GameTime gameTime)
     {
-        _currentScene?.Update(gameTime);
+        CurrentScene?.Update(gameTime);
     }
 
-    public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
+    public void DrawWorld(GameTime gameTime, SpriteBatch spriteBatch)
     {
-        _currentScene?.Draw(gameTime, spriteBatch);
+        CurrentScene?.DrawWorld(gameTime, spriteBatch);
+    }
+
+    public void DrawUi(GameTime gameTime, SpriteBatch spriteBatch)
+    {
+        CurrentScene?.DrawUi(gameTime, spriteBatch);
     }
 }

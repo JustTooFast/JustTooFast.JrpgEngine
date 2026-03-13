@@ -34,6 +34,7 @@ public sealed class MapScene : IScene
     private readonly EncounterService _encounterService;
     private readonly SceneManager _sceneManager;
     private readonly Func<GameState, MapScene> _mapSceneFactory;
+    private readonly MapCamera _mapCamera;
 
     private KeyboardState _previousKeyboardState;
     private FacingDirection? _heldMoveDirection;
@@ -43,6 +44,7 @@ public sealed class MapScene : IScene
 
     private const double HeldMoveRepeatDelayMs = 140.0;
     private const double HeldBlockedRepeatDelayMs = 180.0;
+    private const int CameraLeadTiles = 2;
 
     public MapScene(
         SceneManager sceneManager,
@@ -78,8 +80,14 @@ public sealed class MapScene : IScene
 
         _playerMapMover = new PlayerMapMover();
         _interactionRunner = new MapInteractionRunner(_definitions, GameState);
+        _mapCamera = new MapCamera(
+            PresentationSurface.InternalWidth,
+            PresentationSurface.InternalHeight,
+            CameraLeadTiles,
+            2f);
 
         _playerMapMover.InitializeFromGameState(GameState);
+        SnapCameraToCurrentState();
         _controlState = MapControlState.Normal;
     }
 
@@ -111,6 +119,7 @@ public sealed class MapScene : IScene
         RequestReturnToTitle = false;
         _pauseMenuOverlay.Reset();
         GameState.IsPaused = false;
+        SnapCameraToCurrentState();
     }
 
     public void Exit()
@@ -129,6 +138,7 @@ public sealed class MapScene : IScene
         if (_controlState == MapControlState.Transitioning)
         {
             UpdateTransition();
+            UpdateCameraFromCurrentState(gameTime);
             _previousKeyboardState = keyboardState;
             return;
         }
@@ -182,6 +192,9 @@ public sealed class MapScene : IScene
             _playerMapMover.Update(gameTime, GameState, RuntimeMap.Definition);
         }
 
+        // Camera advances only during active movement.
+        // When movement ends, keep the current camera position instead of settling
+        // toward a final target. This gives a steadier tile-based JRPG feel.
         if (wasMoving && !_playerMapMover.IsMoving && _controlState == MapControlState.Normal)
         {
             TryStartStepOnInteraction();
@@ -190,12 +203,30 @@ public sealed class MapScene : IScene
             {
                 TryStartRandomEncounter();
             }
+
+            var heldDirection = ResolveHeldDirection(keyboardState);
+            var shouldContinueMoving = false;
+
+            if (heldDirection is not null)
+            {
+                var nextTile = GetPlayerTile() + GetDirectionOffset(heldDirection.Value);
+                shouldContinueMoving = CanPlayerEnterTileInternal(nextTile);
+            }
+
+            if (shouldContinueMoving)
+            {
+                UpdateCameraFromCurrentState(gameTime);
+            }
+        }
+        else if (_playerMapMover.IsMoving)
+        {
+            UpdateCameraFromCurrentState(gameTime);
         }
 
         _previousKeyboardState = keyboardState;
     }
 
-    public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
+    public void DrawWorld(GameTime gameTime, SpriteBatch spriteBatch)
     {
         if (gameTime is null)
         {
@@ -207,11 +238,34 @@ public sealed class MapScene : IScene
             throw new ArgumentNullException(nameof(spriteBatch));
         }
 
+        DrawWorldContents(gameTime, spriteBatch);
+    }
+
+    public void DrawUi(GameTime gameTime, SpriteBatch spriteBatch)
+    {
+        if (gameTime is null)
+        {
+            throw new ArgumentNullException(nameof(gameTime));
+        }
+
+        if (spriteBatch is null)
+        {
+            throw new ArgumentNullException(nameof(spriteBatch));
+        }
+
+        DrawUiContents(gameTime, spriteBatch);
+    }
+
+    private void DrawWorldContents(GameTime gameTime, SpriteBatch spriteBatch)
+    {
         var context = new MapSceneRenderContext(
             spriteBatch,
             gameTime,
             GameState,
-            RuntimeMap);
+            RuntimeMap,
+            _mapCamera.Position,
+            PresentationSurface.InternalWidth,
+            PresentationSurface.InternalHeight);
 
         spriteBatch.Begin(
             SpriteSortMode.Deferred,
@@ -221,13 +275,15 @@ public sealed class MapScene : IScene
             RasterizerState.CullNone);
 
         _mapBackgroundRenderer.Draw(context);
-        _mapObjectRenderer.Draw(spriteBatch, RuntimeMap);
+        _mapObjectRenderer.Draw(context);
 
         var playerWorldPosition = _playerMapMover.GetVisualWorldPosition(GameState, RuntimeMap.TileSize);
+        var playerScreenPosition = context.WorldToScreen(playerWorldPosition);
 
         var playerRenderContext = new PlayerRenderContext(
             spriteBatch,
             playerWorldPosition,
+            playerScreenPosition,
             RuntimeMap.TileSize,
             GameState.Facing,
             GameState.Party.GetLeaderCharacterId());
@@ -240,16 +296,21 @@ public sealed class MapScene : IScene
         }
 
         spriteBatch.End();
+    }
+
+    private void DrawUiContents(GameTime gameTime, SpriteBatch spriteBatch)
+    {
+        var uiViewport = new Viewport(0, 0, PresentationSurface.UiWidth, PresentationSurface.UiHeight);
 
         if (_activeDialogue is not null)
         {
-            _dialogueOverlay.Draw(spriteBatch, spriteBatch.GraphicsDevice.Viewport, _activeDialogue);
+            _dialogueOverlay.Draw(spriteBatch, uiViewport, _activeDialogue);
             return;
         }
 
         if (_pauseMenuOverlay.IsOpen)
         {
-            _pauseMenuOverlay.Draw(spriteBatch, spriteBatch.GraphicsDevice.Viewport);
+            _pauseMenuOverlay.Draw(spriteBatch, uiViewport);
         }
     }
 
@@ -514,9 +575,45 @@ public sealed class MapScene : IScene
 
         RuntimeMap = BuildRuntimeMap(destinationMap);
         _playerMapMover.InitializeFromGameState(GameState);
+        SnapCameraToCurrentState();
 
         GameState.PendingMapTransition = null;
         _controlState = MapControlState.Normal;
+    }
+
+    private void UpdateCameraFromCurrentState(GameTime gameTime)
+    {
+        var playerWorldPosition = _playerMapMover.GetVisualWorldPosition(GameState, RuntimeMap.TileSize);
+
+        var cameraDirection = _playerMapMover.IsMoving
+            ? _playerMapMover.CurrentMoveDirection
+            : GameState.Facing;
+
+        _mapCamera.Update(
+            gameTime,
+            playerWorldPosition,
+            cameraDirection,
+            _playerMapMover.IsMoving,
+            RuntimeMap.TileSize,
+            RuntimeMap.Definition.Width * RuntimeMap.TileSize,
+            RuntimeMap.Definition.Height * RuntimeMap.TileSize);
+    }
+
+    private void SnapCameraToCurrentState()
+    {
+        var playerWorldPosition = _playerMapMover.GetVisualWorldPosition(GameState, RuntimeMap.TileSize);
+
+        var cameraDirection = _playerMapMover.IsMoving
+            ? _playerMapMover.CurrentMoveDirection
+            : GameState.Facing;
+
+        _mapCamera.SnapTo(
+            playerWorldPosition,
+            cameraDirection,
+            _playerMapMover.IsMoving,
+            RuntimeMap.TileSize,
+            RuntimeMap.Definition.Width * RuntimeMap.TileSize,
+            RuntimeMap.Definition.Height * RuntimeMap.TileSize);
     }
 
     private MapObjectPlacementDef? TryGetFrontObject()
@@ -725,7 +822,6 @@ public sealed class MapScene : IScene
         return mapDef;
     }
 
-    // Rebuild the current runtime map deterministically from source definitions and story flags.
     private MapRuntime BuildRuntimeMap(MapDef sourceMap)
     {
         var resolvedMapState = _mapStateResolver.Resolve(sourceMap, GameState.StoryFlags);

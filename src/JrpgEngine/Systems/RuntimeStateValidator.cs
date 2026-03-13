@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using JustTooFast.JrpgEngine.Definitions;
+using JustTooFast.JrpgEngine.Rendering;
 using JustTooFast.JrpgEngine.State;
 
 namespace JustTooFast.JrpgEngine.Systems;
@@ -22,9 +23,30 @@ public sealed class RuntimeStateValidator
             throw new ArgumentNullException(nameof(definitions));
         }
 
+        ValidateGameConfig(definitions.GameConfig);
         ValidateCurrentMap(gameState, definitions);
         ValidatePlayerPosition(gameState, definitions);
         ValidateParty(gameState, definitions);
+    }
+
+    private static void ValidateGameConfig(GameConfig gameConfig)
+    {
+        if (gameConfig is null)
+        {
+            throw new ArgumentNullException(nameof(gameConfig));
+        }
+
+        if (!Enum.IsDefined(typeof(PresentationMode), gameConfig.PresentationMode))
+        {
+            throw new InvalidOperationException(
+                $"GameConfig.PresentationMode '{gameConfig.PresentationMode}' is invalid.");
+        }
+
+        if (!Enum.IsDefined(typeof(DisplayMode), gameConfig.DisplayMode))
+        {
+            throw new InvalidOperationException(
+                $"GameConfig.DisplayMode '{gameConfig.DisplayMode}' is invalid.");
+        }
     }
 
     private static void ValidateCurrentMap(GameState gameState, DefinitionDatabase definitions)
