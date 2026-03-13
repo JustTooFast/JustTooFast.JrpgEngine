@@ -2,53 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using JustTooFast.JrpgEngine.Maps;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
 public sealed class MapObjectRenderer : IMapObjectRenderer
 {
-    private readonly IMapObjectRenderer _innerRenderer;
+    private readonly PresentationMode _presentationMode;
+    private readonly IMapObjectRenderer _debugRenderer;
+    private readonly IMapObjectRenderer _realRenderer;
 
     public MapObjectRenderer(
         PresentationMode presentationMode,
         IMapObjectRenderer debugRenderer,
         IMapObjectRenderer realRenderer)
     {
-        if (debugRenderer is null)
-        {
-            throw new ArgumentNullException(nameof(debugRenderer));
-        }
-
-        if (realRenderer is null)
-        {
-            throw new ArgumentNullException(nameof(realRenderer));
-        }
-
-        _innerRenderer = presentationMode switch
-        {
-            PresentationMode.Debug => debugRenderer,
-            PresentationMode.Real => realRenderer,
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(presentationMode),
-                presentationMode,
-                "Unsupported presentation mode.")
-        };
+        _presentationMode = presentationMode;
+        _debugRenderer = debugRenderer ?? throw new ArgumentNullException(nameof(debugRenderer));
+        _realRenderer = realRenderer ?? throw new ArgumentNullException(nameof(realRenderer));
     }
 
-    public void Draw(SpriteBatch spriteBatch, MapRuntime mapRuntime)
+    public void Draw(MapSceneRenderContext context)
     {
-        if (spriteBatch is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(spriteBatch));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (mapRuntime is null)
-        {
-            throw new ArgumentNullException(nameof(mapRuntime));
-        }
+        var renderer = _presentationMode == PresentationMode.Real
+            ? _realRenderer
+            : _debugRenderer;
 
-        _innerRenderer.Draw(spriteBatch, mapRuntime);
+        renderer.Draw(context);
     }
 }

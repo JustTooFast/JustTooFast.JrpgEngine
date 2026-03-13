@@ -31,6 +31,10 @@ public sealed class MapOverheadRenderer
 
         var texture = _visualTextureStore.GetRequired(overheadVisualAssetId);
 
-        context.SpriteBatch.Draw(texture, Vector2.Zero, Color.White);
+        var destination = new Vector2(
+            -context.CameraWorldPosition.X,
+            -context.CameraWorldPosition.Y);
+
+        context.SpriteBatch.Draw(texture, destination, Color.White);
     }
 }

@@ -6,5 +6,6 @@
   "startingPartyMemberIds": [
     "char_hero"
   ],
-  "presentationMode": "Debug"
+  "presentationMode": "Debug",
+  "displayMode": "Windowed"
 }

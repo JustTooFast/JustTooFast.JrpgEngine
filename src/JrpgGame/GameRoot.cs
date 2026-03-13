@@ -15,6 +15,7 @@ using JustTooFast.JrpgEngine.Systems;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using DisplayMode = JustTooFast.JrpgEngine.Rendering.DisplayMode;
 
 namespace JustTooFast.JrpgGame;
 
@@ -29,9 +30,11 @@ public sealed class GameRoot : Game
     private NewGameService? _newGameService;
     private MapCollisionService? _mapCollisionService;
     private EncounterService? _encounterService;
+    private PresentationSurface? _presentationSurface;
 
     private Texture2D? _debugPixel;
     private SpriteFont? _debugFont;
+    private SpriteFont? _dialogueFont;
 
     private IVisualTextureStore? _visualTextureStore;
     private IMapBackgroundRenderer? _mapBackgroundRenderer;
@@ -44,6 +47,11 @@ public sealed class GameRoot : Game
     public GameRoot()
     {
         _graphics = new GraphicsDeviceManager(this);
+        _graphics.SynchronizeWithVerticalRetrace = true;
+
+        IsFixedTimeStep = true;
+        TargetElapsedTime = TimeSpan.FromSeconds(1.0 / 60.0);
+
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
         Window.Title = "JustTooFast.JrpgGame";
@@ -55,6 +63,7 @@ public sealed class GameRoot : Game
 
         _debugPixel = DebugTextureFactory.CreateSolidTexture(GraphicsDevice, Color.White);
         _debugFont = Content.Load<SpriteFont>("Fonts/DebugFont");
+        _dialogueFont = Content.Load<SpriteFont>("Fonts/DialogueFont");
 
         var dataRoot = ResolveDataRoot();
 
@@ -64,6 +73,8 @@ public sealed class GameRoot : Game
         _mapCollisionService = new MapCollisionService(_definitions);
         _encounterService = new EncounterService();
         _sceneManager = new SceneManager();
+
+        ApplyDisplayMode(_definitions.GameConfig.DisplayMode);
 
         _visualTextureStore = new VisualTextureStore(Content);
 
@@ -96,7 +107,9 @@ public sealed class GameRoot : Game
             realMapObjectRenderer);
 
         _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
-        _dialogueOverlay = new DialogueOverlay(_debugPixel, _debugFont);
+        _dialogueOverlay = new DialogueOverlay(_debugPixel, _dialogueFont);
+
+        _presentationSurface = new PresentationSurface(GraphicsDevice);
 
         var titleScene = new TitleScene(
             _sceneManager,
@@ -139,25 +152,38 @@ public sealed class GameRoot : Game
 
     protected override void Draw(GameTime gameTime)
     {
-        var clearColor = Color.CornflowerBlue;
-
-        if (_sceneManager?.CurrentSceneType == SceneType.Map)
+        if (_spriteBatch is null)
         {
-            clearColor = Color.DarkOliveGreen;
-        }
-        else if (_sceneManager?.CurrentSceneType == SceneType.Battle)
-        {
-            clearColor = Color.DarkRed;
+            base.Draw(gameTime);
+            return;
         }
 
-        GraphicsDevice.Clear(clearColor);
-
-        if (_spriteBatch is not null)
+        if (_presentationSurface is null)
         {
-            _sceneManager?.Draw(gameTime, _spriteBatch);
+            throw new InvalidOperationException("PresentationSurface has not been initialized.");
         }
+
+        _presentationSurface.BeginWorldScene();
+        _sceneManager?.DrawWorld(gameTime, _spriteBatch);
+        _presentationSurface.EndWorldScene();
+
+        _presentationSurface.BeginUiScene();
+        _sceneManager?.DrawUi(gameTime, _spriteBatch);
+        _presentationSurface.EndUiScene();
+
+        _presentationSurface.Present(_spriteBatch);
 
         base.Draw(gameTime);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _presentationSurface?.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 
     private MapScene CreateMapScene(GameState gameState)
@@ -226,6 +252,52 @@ public sealed class GameRoot : Game
             _dialogueOverlay,
             _definitions.GameConfig.PresentationMode,
             CreateMapScene);
+    }
+
+    private void ApplyDisplayMode(DisplayMode displayMode)
+    {
+        switch (displayMode)
+        {
+            case DisplayMode.Windowed:
+                _graphics.IsFullScreen = false;
+                _graphics.HardwareModeSwitch = false;
+                Window.IsBorderless = false;
+                Window.AllowUserResizing = false;
+                _graphics.PreferredBackBufferWidth = PresentationSurface.InternalWidth * PresentationSurface.WindowedScale;
+                _graphics.PreferredBackBufferHeight = PresentationSurface.InternalHeight * PresentationSurface.WindowedScale;
+                _graphics.ApplyChanges();
+                break;
+
+            case DisplayMode.Fullscreen:
+                Window.AllowUserResizing = false;
+
+                if (OperatingSystem.IsLinux())
+                {
+                    Window.IsBorderless = false;
+                    _graphics.HardwareModeSwitch = false;
+                    _graphics.IsFullScreen = true;
+                    _graphics.ApplyChanges();
+                }
+                else
+                {
+                    _graphics.IsFullScreen = false;
+                    _graphics.HardwareModeSwitch = false;
+                    Window.IsBorderless = true;
+
+                    var displayModeBounds = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+                    _graphics.PreferredBackBufferWidth = displayModeBounds.Width;
+                    _graphics.PreferredBackBufferHeight = displayModeBounds.Height;
+                    _graphics.ApplyChanges();
+
+                    Window.Position = Point.Zero;
+                }
+
+                break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unsupported display mode '{displayMode}'.");
+        }
     }
 
     private static string ResolveDataRoot()

@@ -35,18 +35,26 @@ public sealed class DialogueOverlay
         var screenBounds = new Rectangle(0, 0, viewport.Width, viewport.Height);
 
         var panelMargin = 16;
-        var panelHeight = Math.Min(160, Math.Max(110, viewport.Height / 3));
+        var panelHeight = 112;
         var panelBounds = new Rectangle(
             panelMargin,
             viewport.Height - panelHeight - panelMargin,
             viewport.Width - (panelMargin * 2),
             panelHeight);
 
-        var textOrigin = new Vector2(panelBounds.X + 16, panelBounds.Y + 16);
-        var textWidth = panelBounds.Width - 32;
+        var textPadding = 16;
+        var textOrigin = new Vector2(
+            panelBounds.X + textPadding,
+            panelBounds.Y + textPadding);
+        var textWidth = panelBounds.Width - (textPadding * 2);
         var wrappedText = WrapText(session.CurrentLine, textWidth);
 
-        spriteBatch.Begin();
+        spriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            BlendState.AlphaBlend,
+            SamplerState.PointClamp,
+            DepthStencilState.None,
+            RasterizerState.CullNone);
 
         spriteBatch.Draw(_pixel, screenBounds, Color.Black * 0.25f);
         spriteBatch.Draw(_pixel, panelBounds, Color.MidnightBlue);

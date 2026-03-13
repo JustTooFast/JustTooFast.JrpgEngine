@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using JustTooFast.JrpgEngine.State;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -25,14 +24,14 @@ public sealed class DebugPlayerRenderer : IPlayerRenderer
         }
 
         var spriteBatch = context.SpriteBatch;
-        var worldPosition = context.WorldPosition;
+        var screenPosition = context.ScreenPosition;
         var tileSize = context.TileSize;
 
         var inset = Math.Max(4, tileSize / 8);
 
         var bounds = new Rectangle(
-            (int)worldPosition.X + inset,
-            (int)worldPosition.Y + inset,
+            (int)MathF.Round(screenPosition.X) + inset,
+            (int)MathF.Round(screenPosition.Y) + inset,
             tileSize - (inset * 2),
             tileSize - (inset * 2));
 

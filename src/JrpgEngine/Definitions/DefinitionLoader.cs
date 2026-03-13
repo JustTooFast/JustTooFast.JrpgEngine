@@ -443,6 +443,18 @@ public static class DefinitionLoader
             throw new InvalidOperationException(
                 "GameConfig must define at least one StartingPartyMemberId.");
         }
+
+        if (!Enum.IsDefined(gameConfig.PresentationMode))
+        {
+            throw new InvalidOperationException(
+                $"GameConfig.PresentationMode '{gameConfig.PresentationMode}' is invalid.");
+        }
+
+        if (!Enum.IsDefined(gameConfig.DisplayMode))
+        {
+            throw new InvalidOperationException(
+                $"GameConfig.DisplayMode '{gameConfig.DisplayMode}' is invalid.");
+        }
     }
 
     private static void ValidateMaps(IReadOnlyDictionary<string, MapDef> maps)

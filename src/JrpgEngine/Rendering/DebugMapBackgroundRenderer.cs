@@ -34,24 +34,26 @@ public sealed class DebugMapBackgroundRenderer : IMapBackgroundRenderer
         {
             for (var x = 0; x < mapDef.Width; x++)
             {
-                var bounds = new Rectangle(x * tileSize, y * tileSize, tileSize, tileSize);
+                var worldBounds = new Rectangle(x * tileSize, y * tileSize, tileSize, tileSize);
+                var screenBounds = context.WorldToScreen(worldBounds);
 
-                spriteBatch.Draw(_pixel, bounds, floorColor);
-
-                DrawRectOutline(spriteBatch, bounds, 1, Color.Black * 0.35f);
+                spriteBatch.Draw(_pixel, screenBounds, floorColor);
+                DrawRectOutline(spriteBatch, screenBounds, 1, Color.Black * 0.35f);
             }
         }
 
         foreach (var blockedTile in mapDef.BlockedTiles)
         {
-            var blockedBounds = new Rectangle(
+            var blockedWorldBounds = new Rectangle(
                 blockedTile.X * tileSize,
                 blockedTile.Y * tileSize,
                 tileSize,
                 tileSize);
 
-            spriteBatch.Draw(_pixel, blockedBounds, Color.DimGray);
-            DrawRectOutline(spriteBatch, blockedBounds, 1, Color.Black);
+            var blockedScreenBounds = context.WorldToScreen(blockedWorldBounds);
+
+            spriteBatch.Draw(_pixel, blockedScreenBounds, Color.DimGray);
+            DrawRectOutline(spriteBatch, blockedScreenBounds, 1, Color.Black);
         }
     }
 

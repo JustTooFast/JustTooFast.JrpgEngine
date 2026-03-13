@@ -235,18 +235,23 @@ the executable application and assets live inside **JrpgGame**.
 
 # Current Status
 
-**Slice 5.3: Real Map Object Rendering + Shared Visual Definitions — Complete**
+**Slice 5.4: Internal Resolution, Camera, and Scaled Presentation — Complete**
 
-The engine now supports **real visual rendering for map objects** in addition to
-player sprite rendering and map visuals.
+The engine now renders gameplay using a fixed **internal resolution**
+with a presentation layer that scales the game cleanly to the window or
+fullscreen display.
 
-Map objects such as NPCs, chests, doors, and exits can now reference shared
-visual definitions, allowing both characters and environmental objects to
-render using the same sprite rendering system.
+Gameplay rendering occurs on a low-resolution internal surface and is
+then scaled to the screen using integer scaling. A higher-resolution UI
+surface renders menus and dialogue overlays independently from the
+world layer.
 
-Visual definitions describe how a sprite sheet should be interpreted,
-including frame size and directional layout. This allows different game
-entities to share a consistent visual contract while remaining data-driven.
+This approach preserves pixel-art clarity while allowing flexible
+window sizes and fullscreen display.
+
+The engine also introduces a camera system with directional lead,
+allowing the player to see slightly farther in the direction of
+movement while keeping gameplay centered on the party leader.
 
 The engine now supports:
 
@@ -273,6 +278,11 @@ The engine now supports:
 - Render map objects using shared visual definitions
 - Trigger random encounters based on player movement
 - Transition between exploration and battle scenes
+- Render gameplay to a fixed internal resolution
+- Scale the game presentation cleanly to windowed or fullscreen display
+- Render world and UI layers separately for crisp pixel-art scaling
+- Use a camera system with directional lead during movement
+- Maintain smooth visual interpolation for both player movement and camera motion
 
 Movement remains **tile-based for gameplay** but **smoothly interpolated visually**.
 
@@ -935,13 +945,96 @@ Overhead visuals are only rendered in **Real** presentation mode.
 
 The layered map draw flow is:
 
+World layer:
+
 1. Map background
 2. Map objects
 3. Player
 4. Map overhead
 
+UI layer:
+
+5. Dialogue overlays
+6. Menu overlays
+7. Other UI elements
+
 This keeps map presentation isolated from gameplay logic while allowing
 the player to move visually behind overhead scenery.
+
+The world layer renders to the internal gameplay surface while the UI
+layer renders to a separate higher-resolution surface.
+
+Both surfaces are combined during final presentation.
+
+### Internal Resolution and Scaled Presentation
+
+Slice **5.4** introduces a presentation pipeline based on a fixed
+internal resolution.
+
+Gameplay rendering occurs on an off-screen surface with a resolution of:
+
+320 × 176
+
+This internal surface represents the logical world resolution used for
+map rendering and camera calculations.
+
+When the frame is complete, the engine scales the internal surface to
+the window or fullscreen display using **integer scaling**. This
+preserves pixel-art clarity and avoids sub-pixel distortion.
+
+The UI layer renders on a separate surface at double resolution:
+
+640 × 352
+
+This allows text and interface elements to remain crisp while the world
+continues to use low-resolution pixel-art rendering.
+
+The final presentation frame is composed by drawing the world layer
+first and the UI layer on top.
+
+World rendering therefore remains stable and deterministic while UI
+elements can use higher resolution layouts.
+
+### Camera System
+
+Slice **5.4** also introduces a map camera system responsible for
+framing the world relative to the player.
+
+The camera follows the player's visual position rather than their tile
+position, ensuring that smooth movement interpolation is reflected in
+the rendered view.
+
+The camera includes a **directional lead offset** that shifts the view
+slightly in the direction of movement. This allows the player to see
+more of the environment ahead of them while walking.
+
+Key camera behaviors:
+
+- Camera follows the player's interpolated visual position
+- Directional lead is applied while the player is moving
+- Camera position clamps to map boundaries
+- Camera updates independently from gameplay logic
+
+When the player stops moving, the camera simply remains in its current
+position rather than settling toward the player tile. This avoids visual
+bounce artifacts and keeps camera behavior predictable.
+
+The camera system operates purely as a rendering component and contains
+no gameplay logic.
+
+### Windowed and Fullscreen Presentation
+
+The engine supports both windowed and fullscreen display modes.
+
+Windowed mode uses a fixed integer scale of the internal resolution.
+
+Fullscreen mode expands the game to the monitor while preserving
+integer scaling and aspect ratio. If the display resolution does not
+match the internal aspect ratio, the engine automatically adds
+letterboxing or pillarboxing.
+
+This ensures the gameplay image remains visually stable regardless of
+screen size.
 
 ------------------------------------------------------------------------
 
@@ -1089,6 +1182,7 @@ Completed slices:
 - Slice 5.1 -- Overhead map visual layers
 - Slice 5.2 -- Real player sprite rendering (4-direction, non-animated)
 - Slice 5.3 -- Real map object rendering and shared visual definitions
+- Slice 5.4 -- Internal resolution, camera system, and scaled presentation
 
 ------------------------------------------------------------------------
 

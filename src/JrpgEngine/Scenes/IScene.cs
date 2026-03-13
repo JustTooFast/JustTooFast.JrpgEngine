@@ -4,7 +4,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace JustTooFast.JrpgEngine.Scenes;
+namespace JustTooFast.JrpgEngine.Core;
 
 public interface IScene
 {
@@ -14,5 +14,7 @@ public interface IScene
 
     void Update(GameTime gameTime);
 
-    void Draw(GameTime gameTime, SpriteBatch spriteBatch);
+    void DrawWorld(GameTime gameTime, SpriteBatch spriteBatch);
+
+    void DrawUi(GameTime gameTime, SpriteBatch spriteBatch);
 }

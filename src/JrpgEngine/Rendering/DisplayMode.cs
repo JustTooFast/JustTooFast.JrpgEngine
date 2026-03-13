@@ -3,7 +3,8 @@
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
-public interface IMapObjectRenderer
+public enum DisplayMode
 {
-    void Draw(MapSceneRenderContext context);
+    Windowed = 0,
+    Fullscreen = 1
 }

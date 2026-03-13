@@ -19,4 +19,6 @@ public sealed class GameConfig
     public List<string> StartingPartyMemberIds { get; set; } = new();
 
     public PresentationMode PresentationMode { get; set; } = PresentationMode.Debug;
+
+    public DisplayMode DisplayMode { get; set; } = DisplayMode.Windowed;
 }
