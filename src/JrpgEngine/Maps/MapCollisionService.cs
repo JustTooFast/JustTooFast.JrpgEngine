@@ -9,8 +9,13 @@ namespace JustTooFast.JrpgEngine.Maps;
 
 public sealed class MapCollisionService
 {
-    private readonly Dictionary<string, HashSet<TileCoord>> _blockedTileCache =
-        new(StringComparer.Ordinal);
+    private readonly DefinitionDatabase _definitions;
+    private readonly Dictionary<MapDef, HashSet<TileCoord>> _blockedTileCache = new();
+
+    public MapCollisionService(DefinitionDatabase definitions)
+    {
+        _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
+    }
 
     public bool IsInBounds(MapDef mapDef, TileCoord tile)
     {
@@ -48,7 +53,7 @@ public sealed class MapCollisionService
 
     private HashSet<TileCoord> GetOrBuildBlockedTileSet(MapDef mapDef)
     {
-        if (_blockedTileCache.TryGetValue(mapDef.Id, out var cached))
+        if (_blockedTileCache.TryGetValue(mapDef, out var cached))
         {
             return cached;
         }
@@ -62,13 +67,19 @@ public sealed class MapCollisionService
 
         foreach (var mapObject in mapDef.Objects)
         {
-            if (mapObject.BlocksMovement)
+            if (!_definitions.MapObjects.TryGetValue(mapObject.MapObjectDefId, out var mapObjectDef))
+            {
+                throw new InvalidOperationException(
+                    $"Map object placement '{mapObject.Id}' references unknown map object def '{mapObject.MapObjectDefId}'.");
+            }
+
+            if (mapObjectDef.BlocksMovement)
             {
                 built.Add(new TileCoord(mapObject.X, mapObject.Y));
             }
         }
 
-        _blockedTileCache.Add(mapDef.Id, built);
+        _blockedTileCache.Add(mapDef, built);
         return built;
     }
 }

@@ -1,0 +1,8 @@
+{
+  "id": "vis_chest_test",
+  "visualAssetId": "Objects/chest_test",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 1,
+  "facingDirections": 1
+}

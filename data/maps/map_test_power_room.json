@@ -57,26 +57,23 @@
   "objects": [
     {
       "id": "obj_generator_console_01",
-      "type": "Npc",
       "x": 3,
       "y": 3,
-      "blocksMovement": true,
+      "mapObjectDefId": "obj_npc_test",
       "interactionId": "int_generator_console_01"
     },
     {
       "id": "obj_exit_to_town_01",
-      "type": "MapExit",
       "x": 2,
       "y": 6,
-      "blocksMovement": false,
+      "mapObjectDefId": "obj_exit_test",
       "interactionId": "int_exit_to_town_01"
     },
     {
       "id": "obj_exit_elevator_01",
-      "type": "MapExit",
       "x": 6,
       "y": 3,
-      "blocksMovement": false,
+      "mapObjectDefId": "obj_exit_test",
       "interactionId": "int_exit_elevator_01",
       "visibleIfFlagSet": "flag_generator_on"
     }

@@ -1,0 +1,8 @@
+{
+  "id": "vis_hero",
+  "visualAssetId": "Sprites/debug_player_orientation",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 3,
+  "facingDirections": 4
+}

@@ -25,6 +25,8 @@ public static class DefinitionLoader
         var gameConfigPath = Path.Combine(dataRoot, "game", "game_config.json");
         var mapsPath = Path.Combine(dataRoot, "maps");
         var charactersPath = Path.Combine(dataRoot, "characters");
+        var visualsPath = Path.Combine(dataRoot, "visuals");
+        var mapObjectsPath = Path.Combine(dataRoot, "map_objects");
         var dialoguesPath = Path.Combine(dataRoot, "dialogues");
         var interactionsPath = Path.Combine(dataRoot, "interactions");
         var itemsPath = Path.Combine(dataRoot, "items");
@@ -35,6 +37,8 @@ public static class DefinitionLoader
         var gameConfig = JsonFile.Load<GameConfig>(gameConfigPath);
         var maps = LoadMapDefinitions(mapsPath);
         var characters = LoadCharacterDefinitions(charactersPath);
+        var visuals = LoadVisualDefinitions(visualsPath);
+        var mapObjects = LoadMapObjectDefinitions(mapObjectsPath);
         var dialogues = LoadDialogueDefinitions(dialoguesPath);
         var interactions = LoadInteractionDefinitions(interactionsPath);
         var items = LoadItemDefinitions(itemsPath);
@@ -45,6 +49,8 @@ public static class DefinitionLoader
         ValidateGameConfig(gameConfig);
         ValidateMaps(maps);
         ValidateCharacters(characters);
+        ValidateVisuals(visuals);
+        ValidateMapObjects(mapObjects);
         ValidateDialogues(dialogues);
         ValidateInteractions(interactions);
         ValidateItems(items);
@@ -55,6 +61,8 @@ public static class DefinitionLoader
             gameConfig,
             maps,
             characters,
+            visuals,
+            mapObjects,
             dialogues,
             interactions,
             items,
@@ -65,14 +73,16 @@ public static class DefinitionLoader
         return new DefinitionDatabase(
             gameConfig,
             maps,
+            mapObjects,
             characters,
+            visuals,
             dialogues,
             interactions,
             items,
             enemies,
             encounters,
             encounterTables);
-            }
+    }
 
     private static Dictionary<string, MapDef> LoadMapDefinitions(string mapsPath)
     {
@@ -140,6 +150,74 @@ public static class DefinitionLoader
         }
 
         return characters;
+    }
+
+    private static Dictionary<string, VisualDef> LoadVisualDefinitions(string visualsPath)
+    {
+        if (!Directory.Exists(visualsPath))
+        {
+            throw new DirectoryNotFoundException($"Visuals folder not found: {visualsPath}");
+        }
+
+        var visualFiles = Directory.GetFiles(visualsPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (visualFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No visual definition files found in: {visualsPath}");
+        }
+
+        var visuals = new Dictionary<string, VisualDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in visualFiles)
+        {
+            var visualDef = JsonFile.Load<VisualDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(visualDef.Id))
+            {
+                throw new InvalidOperationException($"Visual definition in '{filePath}' is missing Id.");
+            }
+
+            if (!visuals.TryAdd(visualDef.Id, visualDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate visual id '{visualDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return visuals;
+    }
+
+    private static Dictionary<string, MapObjectDef> LoadMapObjectDefinitions(string mapObjectsPath)
+    {
+        if (!Directory.Exists(mapObjectsPath))
+        {
+            throw new DirectoryNotFoundException($"Map objects folder not found: {mapObjectsPath}");
+        }
+
+        var mapObjectFiles = Directory.GetFiles(mapObjectsPath, "*.json", SearchOption.TopDirectoryOnly);
+        if (mapObjectFiles.Length == 0)
+        {
+            throw new InvalidOperationException($"No map object definition files found in: {mapObjectsPath}");
+        }
+
+        var mapObjects = new Dictionary<string, MapObjectDef>(StringComparer.Ordinal);
+
+        foreach (var filePath in mapObjectFiles)
+        {
+            var mapObjectDef = JsonFile.Load<MapObjectDef>(filePath);
+
+            if (string.IsNullOrWhiteSpace(mapObjectDef.Id))
+            {
+                throw new InvalidOperationException($"Map object definition in '{filePath}' is missing Id.");
+            }
+
+            if (!mapObjects.TryAdd(mapObjectDef.Id, mapObjectDef))
+            {
+                throw new InvalidOperationException(
+                    $"Duplicate map object id '{mapObjectDef.Id}' found in '{filePath}'.");
+            }
+        }
+
+        return mapObjects;
     }
 
     private static Dictionary<string, DialogueDef> LoadDialogueDefinitions(string dialoguesPath)
@@ -466,10 +544,10 @@ public static class DefinitionLoader
                         $"Map '{mapId}' contains duplicate object id '{mapObject.Id}'.");
                 }
 
-                if (string.IsNullOrWhiteSpace(mapObject.Type))
+                if (string.IsNullOrWhiteSpace(mapObject.MapObjectDefId))
                 {
                     throw new InvalidOperationException(
-                        $"Map '{mapId}' object '{mapObject.Id}' must have a non-empty Type.");
+                        $"Map '{mapId}' object '{mapObject.Id}' must have a non-empty MapObjectDefId.");
                 }
 
                 if (mapObject.X < 0 || mapObject.X >= mapDef.Width ||
@@ -587,10 +665,65 @@ public static class DefinitionLoader
                     $"Character '{characterId}' must have a non-empty Name.");
             }
 
-            if (string.IsNullOrWhiteSpace(characterDef.VisualAssetId))
+            if (string.IsNullOrWhiteSpace(characterDef.VisualId))
             {
                 throw new InvalidOperationException(
-                    $"Character '{characterId}' must have a non-empty VisualAssetId.");
+                    $"Character '{characterId}' must have a non-empty VisualId.");
+            }
+        }
+    }
+
+    private static void ValidateVisuals(IReadOnlyDictionary<string, VisualDef> visuals)
+    {
+        foreach (var (visualId, visualDef) in visuals)
+        {
+            if (string.IsNullOrWhiteSpace(visualDef.VisualAssetId))
+            {
+                throw new InvalidOperationException(
+                    $"Visual '{visualId}' must have a non-empty VisualAssetId.");
+            }
+
+            if (visualDef.FrameWidth != 32)
+            {
+                throw new InvalidOperationException(
+                    $"Visual '{visualId}' must have FrameWidth = 32.");
+            }
+
+            if (visualDef.FrameHeight != 32)
+            {
+                throw new InvalidOperationException(
+                    $"Visual '{visualId}' must have FrameHeight = 32.");
+            }
+
+            if (visualDef.FrameCount != 1 && visualDef.FrameCount != 3)
+            {
+                throw new InvalidOperationException(
+                    $"Visual '{visualId}' must have FrameCount of 1 or 3.");
+            }
+
+            var facingDirections = visualDef.FacingDirections ?? 1;
+            if (facingDirections != 1 && facingDirections != 4)
+            {
+                throw new InvalidOperationException(
+                    $"Visual '{visualId}' must have FacingDirections of 1 or 4.");
+            }
+        }
+    }
+
+    private static void ValidateMapObjects(IReadOnlyDictionary<string, MapObjectDef> mapObjects)
+    {
+        foreach (var (mapObjectId, mapObjectDef) in mapObjects)
+        {
+            if (string.IsNullOrWhiteSpace(mapObjectDef.Id))
+            {
+                throw new InvalidOperationException(
+                    $"Map object '{mapObjectId}' must have a non-empty Id.");
+            }
+
+            if (string.IsNullOrWhiteSpace(mapObjectDef.Type))
+            {
+                throw new InvalidOperationException(
+                    $"Map object '{mapObjectId}' must have a non-empty Type.");
             }
         }
     }
@@ -871,6 +1004,8 @@ public static class DefinitionLoader
         GameConfig gameConfig,
         IReadOnlyDictionary<string, MapDef> maps,
         IReadOnlyDictionary<string, CharacterDef> characters,
+        IReadOnlyDictionary<string, VisualDef> visuals,
+        IReadOnlyDictionary<string, MapObjectDef> mapObjects,
         IReadOnlyDictionary<string, DialogueDef> dialogues,
         IReadOnlyDictionary<string, InteractionDef> interactions,
         IReadOnlyDictionary<string, ItemDef> items,
@@ -905,9 +1040,19 @@ public static class DefinitionLoader
 
         foreach (var mapObject in startingMap.Objects)
         {
-            if (mapObject.X == gameConfig.StartingPlayerTileX &&
-                mapObject.Y == gameConfig.StartingPlayerTileY &&
-                mapObject.BlocksMovement)
+            if (mapObject.X != gameConfig.StartingPlayerTileX ||
+                mapObject.Y != gameConfig.StartingPlayerTileY)
+            {
+                continue;
+            }
+
+            if (!mapObjects.TryGetValue(mapObject.MapObjectDefId, out var mapObjectDef))
+            {
+                throw new InvalidOperationException(
+                    $"Map '{startingMap.Id}' object '{mapObject.Id}' references missing map object def '{mapObject.MapObjectDefId}'.");
+            }
+
+            if (mapObjectDef.BlocksMovement)
             {
                 throw new InvalidOperationException(
                     $"Starting player tile ({gameConfig.StartingPlayerTileX}, {gameConfig.StartingPlayerTileY}) " +
@@ -936,12 +1081,34 @@ public static class DefinitionLoader
                 throw new InvalidOperationException(
                     $"GameConfig references missing starting party character '{characterId}'.");
             }
+
+            var characterDef = characters[characterId];
+            if (!visuals.ContainsKey(characterDef.VisualId))
+            {
+                throw new InvalidOperationException(
+                    $"Character '{characterId}' references missing visual '{characterDef.VisualId}'.");
+            }
         }
 
         foreach (var (mapId, mapDef) in maps)
         {
             foreach (var mapObject in mapDef.Objects)
             {
+                if (!mapObjects.ContainsKey(mapObject.MapObjectDefId))
+                {
+                    throw new InvalidOperationException(
+                        $"Map '{mapId}' object '{mapObject.Id}' references missing map object def '{mapObject.MapObjectDefId}'.");
+                }
+
+                var mapObjectDef = mapObjects[mapObject.MapObjectDefId];
+
+                if (!string.IsNullOrWhiteSpace(mapObjectDef.VisualId) &&
+                    !visuals.ContainsKey(mapObjectDef.VisualId))
+                {
+                    throw new InvalidOperationException(
+                        $"Map object def '{mapObjectDef.Id}' references missing visual '{mapObjectDef.VisualId}'.");
+                }
+
                 if (!interactions.ContainsKey(mapObject.InteractionId))
                 {
                     throw new InvalidOperationException(

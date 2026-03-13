@@ -78,42 +78,37 @@
   "objects": [
     {
       "id": "npc_test_01",
-      "type": "Npc",
       "x": 3,
       "y": 2,
-      "blocksMovement": true,
+      "mapObjectDefId": "obj_npc_test",
       "interactionId": "int_test_npc_01"
     },
     {
       "id": "chest_test_01",
-      "type": "Chest",
       "x": 6,
       "y": 6,
-      "blocksMovement": true,
+      "mapObjectDefId": "obj_chest_test",
       "interactionId": "int_test_chest_01"
     },
     {
       "id": "door_test_01",
-      "type": "LockedDoor",
       "x": 4,
       "y": 4,
-      "blocksMovement": true,
+      "mapObjectDefId": "obj_locked_door_test",
       "interactionId": "int_test_locked_door_01"
     },
     {
       "id": "exit_house_01",
-      "type": "MapExit",
       "x": 8,
       "y": 2,
-      "blocksMovement": false,
+      "mapObjectDefId": "obj_exit_test",
       "interactionId": "int_test_exit_to_house_01"
     },
     {
       "id": "exit_power_room_01",
-      "type": "MapExit",
       "x": 2,
       "y": 8,
-      "blocksMovement": false,
+      "mapObjectDefId": "obj_exit_test",
       "interactionId": "int_exit_to_power_room_01"
     }
   ]

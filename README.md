@@ -235,28 +235,20 @@ the executable application and assets live inside **JrpgGame**.
 
 # Current Status
 
-**Slice 5.2: Real Player Sprite Rendering (4-Direction, Non-Animated) — Complete**
+**Slice 5.3: Real Map Object Rendering + Shared Visual Definitions — Complete**
 
-The engine now supports a classic JRPG rendering technique that allows
-visual elements to appear **above the player and map objects**, while
-also allowing the player to render as a real directional sprite in
-**Real** presentation mode.
+The engine now supports **real visual rendering for map objects** in addition to
+player sprite rendering and map visuals.
 
-Maps may optionally define an **overhead visual PNG layer** which is
-drawn after gameplay actors.
+Map objects such as NPCs, chests, doors, and exits can now reference shared
+visual definitions, allowing both characters and environmental objects to
+render using the same sprite rendering system.
 
-This enables environmental visuals such as:
+Visual definitions describe how a sprite sheet should be interpreted,
+including frame size and directional layout. This allows different game
+entities to share a consistent visual contract while remaining data-driven.
 
-- tree canopies
-- building roofs
-- arches and bridges
-- cave ceilings
-- pillars and overhangs
-
-The overhead layer is **presentation-only** and does not affect gameplay
-logic, collision, or interactions.
-
-The engine currently supports:
+The engine now supports:
 
 - Load game definitions from external JSON data
 - Start a new game from a title screen
@@ -278,7 +270,7 @@ The engine currently supports:
 - Render maps using real visual assets through the MonoGame content pipeline
 - Render optional overhead visual layers above gameplay actors
 - Render the player as a real 4-direction sprite in Real presentation mode
-- Preserve the original debug player marker in Debug presentation mode
+- Render map objects using shared visual definitions
 - Trigger random encounters based on player movement
 - Transition between exploration and battle scenes
 
@@ -342,11 +334,38 @@ Blocked tiles prevent movement.
 
 Map objects allow placing interactive entities such as:
 
--   NPCs
--   treasure chests
--   locked doors
--   conditional gates
--   map exits
+- NPCs
+- treasure chests
+- locked doors
+- conditional gates
+- map exits
+- other environmental interactables
+
+Map objects are defined using **two layers**:
+
+**MapObjectDef**
+
+Reusable definition describing the object type and visual.
+
+**MapObjectPlacementDef**
+
+Placement of a specific object instance on a map.
+
+Example placement fields include:
+
+- `id`
+- `mapObjectDefId`
+- `x`
+- `y`
+- `interactionId`
+- visibility conditions
+
+This separation allows many maps to reuse the same object definitions
+while controlling placement and behavior through data.
+
+Map objects may optionally reference **visual definitions**, allowing
+them to render real sprites in Real presentation mode while still
+appearing as simplified shapes in Debug presentation mode.
 
 The runtime representation is handled by:
 
@@ -371,6 +390,46 @@ The optional overhead visual asset represents environmental elements
 that should render above gameplay actors.
 
 Both assets are loaded through the MonoGame content pipeline.
+
+### Visual Definitions
+
+Slice 5.3 introduces **visual definitions**, which describe how a sprite
+sheet should be interpreted by the renderer.
+
+Visual definitions are shared by both:
+
+- characters
+- map objects
+
+A visual definition contains information such as:
+
+- `visualAssetId`
+- `frameWidth`
+- `frameHeight`
+- `frameCount`
+- `facingDirections`
+
+This allows the renderer to determine which portion of a texture should
+be drawn.
+
+Example visual definition:
+
+```json
+{
+  "id": "visual_npc_scientist",
+  "visualAssetId": "Sprites/npc_scientist",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 1,
+  "facingDirections": 1
+}
+```
+
+Because visuals are defined independently from gameplay objects,
+multiple gameplay entities can share the same visual definition.
+
+This design keeps rendering data-driven while maintaining a clear
+separation between gameplay logic and presentation.
 
 ------------------------------------------------------------------------
 
@@ -717,6 +776,8 @@ DebugMapBackgroundRenderer
 RealMapBackgroundRenderer  
 MapBackgroundRenderer  
 MapObjectRenderer  
+DebugMapObjectRenderer  
+RealMapObjectRenderer  
 DebugPlayerRenderer  
 RealPlayerRenderer  
 PlayerRenderer  
@@ -827,6 +888,34 @@ Example:
 
 The player shown on the map is still the **party leader**.
 
+### Map Object Rendering
+
+Slice 5.3 introduces **real map object rendering**.
+
+Map objects can now render real visual sprites using shared visual
+definitions.
+
+Rendering behavior:
+
+Debug presentation mode:
+
+- NPCs appear as blue markers
+- chests appear as brown boxes
+- gates and doors appear as red blockers
+- exits appear as purple markers
+
+This visualization highlights gameplay structure.
+
+Real presentation mode:
+
+- map objects render their configured sprite
+- visuals are resolved through `VisualDef`
+- the renderer extracts the correct sprite frame from the texture
+
+This system allows the same rendering pipeline used by player sprites to
+be reused for map objects, while still keeping debug visualization
+useful during development.
+
 ### Presentation Modes
 
 The engine supports two presentation modes:
@@ -923,7 +1012,7 @@ Key directories:
 - Interactions -- Map interaction systems
 - Maps -- Map runtime + movement
 - Menus -- Map menu overlay
-- Rendering -- Map and debug renderers
+- Rendering -- Map, player, and object renderers
 - Scenes -- Title and map scenes
 - State -- Game runtime state
 - Systems -- Engine services
@@ -999,6 +1088,7 @@ Completed slices:
 - Slice 5 -- Random encounter system
 - Slice 5.1 -- Overhead map visual layers
 - Slice 5.2 -- Real player sprite rendering (4-direction, non-animated)
+- Slice 5.3 -- Real map object rendering and shared visual definitions
 
 ------------------------------------------------------------------------
 

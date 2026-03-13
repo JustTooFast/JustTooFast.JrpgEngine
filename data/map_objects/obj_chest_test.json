@@ -1,0 +1,6 @@
+{
+  "id": "obj_chest_test",
+  "type": "Chest",
+  "blocksMovement": true,
+  "visualId": "vis_chest_test"
+}

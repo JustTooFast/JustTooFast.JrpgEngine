@@ -55,7 +55,7 @@ public sealed class MapStateResolver
         return null;
     }
 
-    private static List<MapObjectDef> ResolveVisibleObjects(
+    private static List<MapObjectPlacementDef> ResolveVisibleObjects(
         MapDef mapDef,
         StoryFlagState storyFlags,
         MapStateVariantDef? activeVariant)
@@ -76,7 +76,7 @@ public sealed class MapStateResolver
             }
         }
 
-        var resolvedObjects = new List<MapObjectDef>();
+        var resolvedObjects = new List<MapObjectPlacementDef>();
 
         foreach (var mapObject in mapDef.Objects)
         {
@@ -105,7 +105,7 @@ public sealed class MapStateResolver
         return resolvedObjects;
     }
 
-    private static bool IsVisibleByObjectConditions(MapObjectDef mapObject, StoryFlagState storyFlags)
+    private static bool IsVisibleByObjectConditions(MapObjectPlacementDef mapObject, StoryFlagState storyFlags)
     {
         if (!string.IsNullOrWhiteSpace(mapObject.VisibleIfFlagSet) &&
             !string.IsNullOrWhiteSpace(mapObject.VisibleIfFlagClear))
@@ -129,7 +129,7 @@ public sealed class MapStateResolver
 
     private static MapDef CloneMapWithResolvedObjects(
         MapDef sourceMap,
-        List<MapObjectDef> resolvedObjects)
+        List<MapObjectPlacementDef> resolvedObjects)
     {
         return new MapDef
         {
@@ -183,15 +183,14 @@ public sealed class MapStateResolver
         return clone;
     }
 
-    private static MapObjectDef CloneObject(MapObjectDef mapObject)
+    private static MapObjectPlacementDef CloneObject(MapObjectPlacementDef mapObject)
     {
-        return new MapObjectDef
+        return new MapObjectPlacementDef
         {
             Id = mapObject.Id,
-            Type = mapObject.Type,
             X = mapObject.X,
             Y = mapObject.Y,
-            BlocksMovement = mapObject.BlocksMovement,
+            MapObjectDefId = mapObject.MapObjectDefId,
             InteractionId = mapObject.InteractionId,
             VisibleIfFlagSet = mapObject.VisibleIfFlagSet,
             VisibleIfFlagClear = mapObject.VisibleIfFlagClear

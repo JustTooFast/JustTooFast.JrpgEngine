@@ -4,24 +4,20 @@
 using System;
 using JustTooFast.JrpgEngine.Definitions;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace JustTooFast.JrpgEngine.Rendering;
 
 public sealed class RealPlayerRenderer : IPlayerRenderer
 {
-    private readonly IVisualTextureStore _visualTextureStore;
     private readonly DefinitionDatabase _definitions;
-    private readonly CharacterSpriteSheetLayout _spriteSheetLayout;
+    private readonly IVisualTextureStore _visualTextureStore;
 
     public RealPlayerRenderer(
-        IVisualTextureStore visualTextureStore,
         DefinitionDatabase definitions,
-        CharacterSpriteSheetLayout spriteSheetLayout)
+        IVisualTextureStore visualTextureStore)
     {
-        _visualTextureStore = visualTextureStore ?? throw new ArgumentNullException(nameof(visualTextureStore));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
-        _spriteSheetLayout = spriteSheetLayout ?? throw new ArgumentNullException(nameof(spriteSheetLayout));
+        _visualTextureStore = visualTextureStore ?? throw new ArgumentNullException(nameof(visualTextureStore));
     }
 
     public void Draw(PlayerRenderContext context)
@@ -37,14 +33,16 @@ public sealed class RealPlayerRenderer : IPlayerRenderer
                 $"Leader character '{context.LeaderCharacterId}' was not found in definitions.");
         }
 
-        if (string.IsNullOrWhiteSpace(characterDef.VisualAssetId))
+        if (!_definitions.Visuals.TryGetValue(characterDef.VisualId, out var visualDef))
         {
             throw new InvalidOperationException(
-                $"Character '{characterDef.Id}' must define a non-empty VisualAssetId.");
+                $"Character '{characterDef.Id}' references missing visual '{characterDef.VisualId}'.");
         }
 
-        var texture = _visualTextureStore.GetRequired(characterDef.VisualAssetId);
-        var sourceRect = _spriteSheetLayout.GetSourceRect(context.FacingDirection, frameIndex: 0);
+        var texture = _visualTextureStore.GetRequired(visualDef.VisualAssetId);
+
+        var row = VisualSourceRectHelper.GetFacingRow(visualDef, context.FacingDirection);
+        var sourceRect = VisualSourceRectHelper.GetSourceRect(visualDef, row, frameIndex: 0);
 
         var destinationRect = new Rectangle(
             (int)context.WorldPosition.X,

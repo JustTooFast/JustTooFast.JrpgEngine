@@ -37,7 +37,7 @@ public sealed class GameRoot : Game
     private IMapBackgroundRenderer? _mapBackgroundRenderer;
     private MapOverheadRenderer? _mapOverheadRenderer;
     private IPlayerRenderer? _playerRenderer;
-    private MapObjectRenderer? _mapObjectRenderer;
+    private IMapObjectRenderer? _mapObjectRenderer;
     private PauseMenuOverlay? _pauseMenuOverlay;
     private DialogueOverlay? _dialogueOverlay;
 
@@ -61,7 +61,7 @@ public sealed class GameRoot : Game
         _definitions = DefinitionLoader.LoadAll(dataRoot);
         _runtimeStateValidator = new RuntimeStateValidator();
         _newGameService = new NewGameService(_runtimeStateValidator);
-        _mapCollisionService = new MapCollisionService();
+        _mapCollisionService = new MapCollisionService(_definitions);
         _encounterService = new EncounterService();
         _sceneManager = new SceneManager();
 
@@ -77,23 +77,24 @@ public sealed class GameRoot : Game
 
         _mapOverheadRenderer = new MapOverheadRenderer(_visualTextureStore);
 
-        var characterSpriteSheetLayout = new CharacterSpriteSheetLayout(
-            frameWidth: 32,
-            frameHeight: 32,
-            framesPerDirection: 3);
-
         var debugPlayerRenderer = new DebugPlayerRenderer(_debugPixel);
         var realPlayerRenderer = new RealPlayerRenderer(
-            _visualTextureStore,
             _definitions,
-            characterSpriteSheetLayout);
+            _visualTextureStore);
 
         _playerRenderer = new PlayerRenderer(
             _definitions.GameConfig.PresentationMode,
             debugPlayerRenderer,
             realPlayerRenderer);
 
-        _mapObjectRenderer = new MapObjectRenderer(_debugPixel);
+        var debugMapObjectRenderer = new DebugMapObjectRenderer(_debugPixel, _definitions);
+        var realMapObjectRenderer = new RealMapObjectRenderer(_visualTextureStore, _definitions);
+
+        _mapObjectRenderer = new MapObjectRenderer(
+            _definitions.GameConfig.PresentationMode,
+            debugMapObjectRenderer,
+            realMapObjectRenderer);
+
         _pauseMenuOverlay = new PauseMenuOverlay(_debugPixel);
         _dialogueOverlay = new DialogueOverlay(_debugPixel, _debugFont);
 

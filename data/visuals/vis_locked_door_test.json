@@ -1,0 +1,8 @@
+{
+  "id": "vis_locked_door_test",
+  "visualAssetId": "Objects/locked_door_test",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 1,
+  "facingDirections": 1
+}
