@@ -10,7 +10,7 @@ public static class Program
     public static int Main(string[] args)
     {
         var battleRuntimeFactory = new BattleRuntimeFactory(
-            new FixedDamageBattleActionResolver(),
+            new FixedDamageBattleActionResolver(damage: 5),
             new FixedXpBattleRewardCalculator(experiencePoints: 10));
 
         var app = new ConsoleBattleHostApp(battleRuntimeFactory);

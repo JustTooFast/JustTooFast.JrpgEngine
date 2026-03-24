@@ -10,7 +10,17 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class FixedDamageBattleActionResolver : IBattleActionResolver
 {
-    private const int FixedDamage = 5;
+    private readonly int _damage;
+
+    public FixedDamageBattleActionResolver(int damage)
+    {
+        if (damage <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(damage), "Damage must be greater than zero.");
+        }
+
+        _damage = damage;
+    }
 
     public BattleActionResult Resolve(BattleState state, BattleActionChoice action)
     {
@@ -56,7 +66,7 @@ public sealed class FixedDamageBattleActionResolver : IBattleActionResolver
             throw new InvalidOperationException("Cannot target a combatant on the same team.");
         }
 
-        var damage = Math.Min(FixedDamage, target.CurrentHp);
+        var damage = Math.Min(_damage, target.CurrentHp);
         var targetDefeated = target.CurrentHp - damage <= 0;
 
         return new BattleActionResult(

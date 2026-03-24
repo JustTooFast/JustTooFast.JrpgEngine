@@ -16,7 +16,7 @@ public sealed class BattleRuntimeTests
     {
         // Arrange
         var runtime = new BattleRuntime(
-            new FixedDamageBattleActionResolver(),
+            new FixedDamageBattleActionResolver(5),
             new FixedXpBattleRewardCalculator(10));
 
         var definition = new BattleDefinition(
