@@ -5,7 +5,7 @@ A **data-driven 2D JRPG engine** built in C# using **MonoGame**.
 The repository contains:
 
 - **JrpgEngine** — the reusable JRPG engine library
-- **JrpgGame** — a playable host application using the engine
+- **JrpgGameHost** — a playable host application using the engine
 
 The engine is developed incrementally using **working vertical slices**.
 Each slice adds playable functionality while maintaining strict
@@ -184,7 +184,7 @@ change without affecting core game behavior.
 Starting with **Slice 4.9**, the project is split into two projects:
 
 - **JrpgEngine** — reusable engine library
-- **JrpgGame** — executable game host
+- **JrpgGameHost** — executable game host
 
 This separation keeps the engine reusable while allowing individual
 games to provide their own assets and startup configuration.
@@ -205,7 +205,7 @@ The engine library contains all reusable gameplay systems:
 The engine contains **no executable entry point** and does not own
 content assets.
 
-### JrpgGame (Executable Host)
+### JrpgGameHost (Executable Host)
 
 The game host provides the runnable application and concrete assets.
 
@@ -229,7 +229,7 @@ Separating the engine from the game host allows:
 - easier experimentation with different games using the same engine
 
 Gameplay rules and systems remain inside **JrpgEngine**, while
-the executable application and assets live inside **JrpgGame**.
+the executable application and assets live inside **JrpgGameHost**.
 
 ------------------------------------------------------------------------
 
@@ -1040,12 +1040,12 @@ screen size.
 
 ## Player Sprite Content
 
-Concrete sprite assets belong to the **JrpgGame** host project and are
+Concrete sprite assets belong to the **JrpgGameHost** host project and are
 loaded through the MonoGame content pipeline.
 
 Typical location:
 
-`src/JrpgGame/Content/Sprites`
+`src/JrpgGameHost/Content/Sprites`
 
 Character map visuals are referenced from character data using
 `visualAssetId`.
@@ -1092,7 +1092,7 @@ The repository now contains two main projects:
 src/JrpgEngine  
 Reusable engine library containing gameplay systems.
 
-src/JrpgGame  
+src/JrpgGameHost  
 Executable MonoGame host that launches the engine.
 
 ### JrpgEngine Structure
@@ -1110,7 +1110,7 @@ Key directories:
 - State -- Game runtime state
 - Systems -- Engine services
 
-### JrpgGame Structure
+### JrpgGameHost Structure
 
 The game host contains:
 
@@ -1133,7 +1133,7 @@ This directory contains JSON definitions for:
 
 Visual assets used by the game are stored in:
 
-src/JrpgGame/Content
+src/JrpgGameHost/Content
 
 This directory contains assets processed by the MonoGame content
 pipeline, including:
@@ -1154,7 +1154,7 @@ engine library.
 
 From the repository root:
 
-dotnet run --project src/JrpgGame/JrpgGame.csproj
+dotnet run --project src/JrpgGameHost/JrpgGameHost.csproj
 
 ------------------------------------------------------------------------
 
