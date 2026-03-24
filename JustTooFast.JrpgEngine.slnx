@@ -2,5 +2,6 @@
   <Folder Name="/src/">
     <Project Path="src/JrpgEngine/JrpgEngine.csproj" />
     <Project Path="src/JrpgGameHost/JrpgGameHost.csproj" />
+    <Project Path="src/JrpgBattle.Abstractions/JrpgBattle.Abstractions.csproj" />
   </Folder>
 </Solution>
