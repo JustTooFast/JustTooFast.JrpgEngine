@@ -3,7 +3,6 @@
 
 using System;
 using System.Linq;
-using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 using JustTooFast.JrpgBattle.ConsoleHost.Scenario;
@@ -13,48 +12,65 @@ namespace JustTooFast.JrpgBattle.ConsoleHost;
 public sealed class ConsoleBattleHostApp
 {
     private readonly IBattleRuntimeFactory _battleRuntimeFactory;
+    private readonly IBattleFlow _flow;
+    private readonly IEnemyActionChooser _enemyActionChooser;
+    private readonly IEnemyTargetChooser _enemyTargetChooser;
 
-    public ConsoleBattleHostApp(IBattleRuntimeFactory battleRuntimeFactory)
+    public ConsoleBattleHostApp(
+        IBattleRuntimeFactory battleRuntimeFactory,
+        IBattleFlow flow,
+        IEnemyActionChooser enemyActionChooser,
+        IEnemyTargetChooser enemyTargetChooser)
     {
         _battleRuntimeFactory = battleRuntimeFactory ?? throw new ArgumentNullException(nameof(battleRuntimeFactory));
+        _flow = flow ?? throw new ArgumentNullException(nameof(flow));
+        _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
+        _enemyTargetChooser = enemyTargetChooser ?? throw new ArgumentNullException(nameof(enemyTargetChooser));
     }
 
     public int Run()
     {
-        BattleDefinition definition = V0BattleScenario.CreateBattleDefinition();
-        IBattleRuntime runtime = _battleRuntimeFactory.Create();
+        var definition = V0BattleScenario.CreateBattleDefinition();
+        var runtime = _battleRuntimeFactory.Create();
 
-        BattleState state = runtime.Initialize(definition);
+        var state = runtime.Initialize(definition);
 
         WriteBattleStarted(state);
 
         while (!state.IsEnded)
         {
-            BattleActionChoice action = ChooseNextAction(state);
+            var actorId = _flow.GetNextActorId(state);
+
+            var actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
+                ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
+
+            BattleActionChoice action;
+
+            if (actor.Team == BattleTeam.Enemy)
+            {
+                var actionKind = _enemyActionChooser.ChooseAction(state, actorId);
+                var targetId = _enemyTargetChooser.ChooseTargetId(state, actorId);
+
+                action = new BattleActionChoice(actorId, actionKind, targetId);
+            }
+            else
+            {
+                // v0 simplification: player always attacks first enemy
+                var targetId = _enemyTargetChooser.ChooseTargetId(state, actorId);
+
+                action = new BattleActionChoice(actorId, BattleActionKind.Attack, targetId);
+            }
+
             state = runtime.ApplyAction(state, action);
 
             WriteBattleState(state);
         }
 
-        BattleResult result = runtime.GetResult(state);
+        var result = runtime.GetResult(state);
 
         WriteBattleResult(result);
 
         return 0;
-    }
-
-    private static BattleActionChoice ChooseNextAction(BattleState state)
-    {
-        BattleCombatantState actor = state.Combatants
-            .First(c => c.IsAlive && c.Team == BattleTeam.Party);
-
-        BattleCombatantState target = state.Combatants
-            .First(c => c.IsAlive && c.Team == BattleTeam.Enemy);
-
-        return new BattleActionChoice(
-            actorId: actor.Id,
-            actionKind: BattleActionKind.Attack,
-            targetId: target.Id);
     }
 
     private static void WriteBattleStarted(BattleState state)
@@ -68,13 +84,13 @@ public sealed class ConsoleBattleHostApp
     private static void WriteBattleState(BattleState state)
     {
         Console.WriteLine("Party:");
-        foreach (BattleCombatantState combatant in state.Combatants.Where(c => c.Team == BattleTeam.Party))
+        foreach (var combatant in state.Combatants.Where(c => c.Team == BattleTeam.Party))
         {
             Console.WriteLine($"  {combatant.Name}: {combatant.CurrentHp}/{combatant.MaxHp} HP");
         }
 
         Console.WriteLine("Enemies:");
-        foreach (BattleCombatantState combatant in state.Combatants.Where(c => c.Team == BattleTeam.Enemy))
+        foreach (var combatant in state.Combatants.Where(c => c.Team == BattleTeam.Enemy))
         {
             Console.WriteLine($"  {combatant.Name}: {combatant.CurrentHp}/{combatant.MaxHp} HP");
         }

@@ -13,7 +13,11 @@ public static class Program
             new FixedDamageBattleActionResolver(damage: 5),
             new FixedXpBattleRewardCalculator(experiencePoints: 10));
 
-        var app = new ConsoleBattleHostApp(battleRuntimeFactory);
+        var app = new ConsoleBattleHostApp(
+            battleRuntimeFactory,
+            new FirstLivingBattleFlow(),
+            new AlwaysAttackEnemyActionChooser(),
+            new FirstLivingEnemyTargetChooser());
 
         return app.Run();
     }
