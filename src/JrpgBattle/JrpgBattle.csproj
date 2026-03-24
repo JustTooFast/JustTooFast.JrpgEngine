@@ -11,4 +11,7 @@
     <AssemblyName>JustTooFast.JrpgBattle.Abstractions</AssemblyName>
     <RootNamespace>JustTooFast.JrpgBattle.Abstractions</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../JrpgBattle.Abstractions/JrpgBattle.Abstractions.csproj" />
+  </ItemGroup>
 </Project>
