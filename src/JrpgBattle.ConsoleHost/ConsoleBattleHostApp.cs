@@ -12,9 +12,9 @@ namespace JustTooFast.JrpgBattle.ConsoleHost;
 
 public sealed class ConsoleBattleHostApp
 {
-    private readonly BattleRuntimeFactory _battleRuntimeFactory;
+    private readonly IBattleRuntimeFactory _battleRuntimeFactory;
 
-    public ConsoleBattleHostApp(BattleRuntimeFactory battleRuntimeFactory)
+    public ConsoleBattleHostApp(IBattleRuntimeFactory battleRuntimeFactory)
     {
         _battleRuntimeFactory = battleRuntimeFactory ?? throw new ArgumentNullException(nameof(battleRuntimeFactory));
     }

@@ -6,7 +6,7 @@ using JustTooFast.JrpgBattle.Abstractions.Contracts;
 
 namespace JustTooFast.JrpgBattle;
 
-public sealed class BattleRuntimeFactory
+public sealed class BattleRuntimeFactory : IBattleRuntimeFactory
 {
     private readonly IBattleActionResolver _actionResolver;
     private readonly IBattleRewardCalculator _rewardCalculator;
