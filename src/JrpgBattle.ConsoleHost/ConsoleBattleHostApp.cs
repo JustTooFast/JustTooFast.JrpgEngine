@@ -15,17 +15,20 @@ public sealed class ConsoleBattleHostApp
     private readonly IBattleFlow _flow;
     private readonly IEnemyActionChooser _enemyActionChooser;
     private readonly IEnemyTargetChooser _enemyTargetChooser;
+    private readonly IBattleRewardApplier _battleRewardApplier;
 
     public ConsoleBattleHostApp(
         IBattleRuntimeFactory battleRuntimeFactory,
         IBattleFlow flow,
         IEnemyActionChooser enemyActionChooser,
-        IEnemyTargetChooser enemyTargetChooser)
+        IEnemyTargetChooser enemyTargetChooser,
+        IBattleRewardApplier battleRewardApplier)
     {
         _battleRuntimeFactory = battleRuntimeFactory ?? throw new ArgumentNullException(nameof(battleRuntimeFactory));
         _flow = flow ?? throw new ArgumentNullException(nameof(flow));
         _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
         _enemyTargetChooser = enemyTargetChooser ?? throw new ArgumentNullException(nameof(enemyTargetChooser));
+        _battleRewardApplier = battleRewardApplier ?? throw new ArgumentNullException(nameof(battleRewardApplier));
     }
 
     public int Run()
@@ -67,6 +70,11 @@ public sealed class ConsoleBattleHostApp
         }
 
         var result = runtime.GetResult(state);
+
+        if (result.Reward is not null)
+        {
+            _battleRewardApplier.Apply(result.Reward);
+        }
 
         WriteBattleResult(result);
 

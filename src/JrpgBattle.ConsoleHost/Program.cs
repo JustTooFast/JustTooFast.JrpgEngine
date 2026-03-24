@@ -17,7 +17,8 @@ public static class Program
             battleRuntimeFactory,
             new FirstLivingBattleFlow(),
             new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser());
+            new FirstLivingEnemyTargetChooser(),
+            new ConsoleBattleRewardApplier());
 
         return app.Run();
     }
