@@ -4,5 +4,6 @@
     <Project Path="src/JrpgGameHost/JrpgGameHost.csproj" />
     <Project Path="src/JrpgBattle.Abstractions/JrpgBattle.Abstractions.csproj" />
     <Project Path="src/JrpgBattle/JrpgBattle.csproj" />
+    <Project Path="src/JrpgBattle.ConsoleHost/JrpgBattle.ConsoleHost.csproj" />
   </Folder>
 </Solution>

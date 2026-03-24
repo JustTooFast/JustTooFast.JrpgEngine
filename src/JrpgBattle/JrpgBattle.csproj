@@ -8,8 +8,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>14.0</LangVersion>
-    <AssemblyName>JustTooFast.JrpgBattle.Abstractions</AssemblyName>
-    <RootNamespace>JustTooFast.JrpgBattle.Abstractions</RootNamespace>
+    <AssemblyName>JustTooFast.JrpgBattle</AssemblyName>
+    <RootNamespace>JustTooFast.JrpgBattle</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../JrpgBattle.Abstractions/JrpgBattle.Abstractions.csproj" />
