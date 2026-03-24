@@ -5,7 +5,7 @@ using JustTooFast.JrpgBattle.Abstractions.Models;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
 
-public interface IBattleRuntimeFactory
+public interface IPlayerChoiceBlockingPolicy
 {
-    IBattleRuntime Create(BattleDefinition definition);
+    bool ShouldBlockAdvance(BattleRuntimeView runtimeView);
 }

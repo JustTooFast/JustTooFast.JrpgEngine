@@ -7,5 +7,7 @@ namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
 
 public interface IBattleFlow
 {
-    string GetNextActorId(BattleState state);
+    BattleFlowResult Advance(BattleState state);
+
+    void ConsumeReadyActor(string actorId);
 }

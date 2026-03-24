@@ -7,9 +7,9 @@ namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
 
 public interface IBattleRuntime
 {
-    BattleState Initialize(BattleDefinition definition);
+    BattleRuntimeView GetView();
 
-    BattleState ApplyAction(BattleState state, BattleActionChoice action);
+    BattleAdvanceResult Advance();
 
-    BattleResult GetResult(BattleState state);
+    BattleAdvanceResult SubmitPlayerAction(BattleActionChoice action);
 }

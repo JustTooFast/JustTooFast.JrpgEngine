@@ -12,98 +12,123 @@ namespace JustTooFast.JrpgBattle.ConsoleHost;
 public sealed class ConsoleBattleHostApp
 {
     private readonly IBattleRuntimeFactory _battleRuntimeFactory;
-    private readonly IBattleFlow _flow;
-    private readonly IEnemyActionChooser _enemyActionChooser;
-    private readonly IEnemyTargetChooser _enemyTargetChooser;
     private readonly IBattleRewardApplier _battleRewardApplier;
 
     public ConsoleBattleHostApp(
         IBattleRuntimeFactory battleRuntimeFactory,
-        IBattleFlow flow,
-        IEnemyActionChooser enemyActionChooser,
-        IEnemyTargetChooser enemyTargetChooser,
         IBattleRewardApplier battleRewardApplier)
     {
         _battleRuntimeFactory = battleRuntimeFactory ?? throw new ArgumentNullException(nameof(battleRuntimeFactory));
-        _flow = flow ?? throw new ArgumentNullException(nameof(flow));
-        _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
-        _enemyTargetChooser = enemyTargetChooser ?? throw new ArgumentNullException(nameof(enemyTargetChooser));
         _battleRewardApplier = battleRewardApplier ?? throw new ArgumentNullException(nameof(battleRewardApplier));
     }
 
     public int Run()
     {
-        var definition = V0BattleScenario.CreateBattleDefinition();
-        var runtime = _battleRuntimeFactory.Create();
+        BattleDefinition definition = V0BattleScenario.CreateBattleDefinition();
+        IBattleRuntime runtime = _battleRuntimeFactory.Create(definition);
 
-        var state = runtime.Initialize(definition);
+        WriteBattleStarted(runtime.GetView().State);
 
-        WriteBattleStarted(state);
-
-        while (!state.IsEnded)
+        while (true)
         {
-            var actorId = _flow.GetNextActorId(state);
+            BattleAdvanceResult advanceResult = runtime.Advance();
 
-            var actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
-                ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
-
-            BattleActionChoice action;
-
-            if (actor.Team == BattleTeam.Enemy)
+            if (advanceResult.ActionResult is not null)
             {
-                var actionKind = _enemyActionChooser.ChooseAction(state, actorId);
-                var targetId = _enemyTargetChooser.ChooseTargetId(state, actorId);
-
-                action = new BattleActionChoice(actorId, actionKind, targetId);
-            }
-            else
-            {
-                // v0 simplification: player always attacks first enemy
-                var targetId = _enemyTargetChooser.ChooseTargetId(state, actorId);
-
-                action = new BattleActionChoice(actorId, BattleActionKind.Attack, targetId);
+                WriteActionResult(runtime.GetView().State, advanceResult.ActionResult);
             }
 
-            state = runtime.ApplyAction(state, action);
+            if (advanceResult.BattleResult is not null)
+            {
+                WriteBattleState(runtime.GetView().State);
+                WriteBattleResult(advanceResult.BattleResult);
 
-            WriteBattleState(state);
+                if (advanceResult.BattleResult.Reward is not null)
+                {
+                    _battleRewardApplier.Apply(advanceResult.BattleResult.Reward);
+                }
+
+                return 0;
+            }
+
+            if (advanceResult.IsPlayerInputNeeded)
+            {
+                BattleActionChoice playerAction = CreatePlayerAction(runtime.GetView().State);
+                BattleAdvanceResult playerResult = runtime.SubmitPlayerAction(playerAction);
+
+                if (playerResult.ActionResult is not null)
+                {
+                    WriteActionResult(runtime.GetView().State, playerResult.ActionResult);
+                }
+
+                if (playerResult.BattleResult is not null)
+                {
+                    WriteBattleState(runtime.GetView().State);
+                    WriteBattleResult(playerResult.BattleResult);
+
+                    if (playerResult.BattleResult.Reward is not null)
+                    {
+                        _battleRewardApplier.Apply(playerResult.BattleResult.Reward);
+                    }
+
+                    return 0;
+                }
+            }
         }
+    }
 
-        var result = runtime.GetResult(state);
+    private static BattleActionChoice CreatePlayerAction(BattleState state)
+    {
+        BattleCombatantState actor = state.Combatants
+            .First(c => c.Team == BattleTeam.Party && c.IsAlive);
 
-        if (result.Reward is not null)
-        {
-            _battleRewardApplier.Apply(result.Reward);
-        }
+        BattleCombatantState target = state.Combatants
+            .First(c => c.Team == BattleTeam.Enemy && c.IsAlive);
 
-        WriteBattleResult(result);
-
-        return 0;
+        return new BattleActionChoice(
+            actorId: actor.Id,
+            actionKind: BattleActionKind.Attack,
+            targetId: target.Id);
     }
 
     private static void WriteBattleStarted(BattleState state)
     {
         Console.WriteLine("Battle started.");
         Console.WriteLine();
-
         WriteBattleState(state);
     }
 
     private static void WriteBattleState(BattleState state)
     {
         Console.WriteLine("Party:");
-        foreach (var combatant in state.Combatants.Where(c => c.Team == BattleTeam.Party))
+        foreach (BattleCombatantState combatant in state.Combatants.Where(c => c.Team == BattleTeam.Party))
         {
             Console.WriteLine($"  {combatant.Name}: {combatant.CurrentHp}/{combatant.MaxHp} HP");
         }
 
         Console.WriteLine("Enemies:");
-        foreach (var combatant in state.Combatants.Where(c => c.Team == BattleTeam.Enemy))
+        foreach (BattleCombatantState combatant in state.Combatants.Where(c => c.Team == BattleTeam.Enemy))
         {
             Console.WriteLine($"  {combatant.Name}: {combatant.CurrentHp}/{combatant.MaxHp} HP");
         }
 
         Console.WriteLine();
+    }
+
+    private static void WriteActionResult(BattleState state, BattleActionResult actionResult)
+    {
+        BattleCombatantState actor = state.Combatants.First(c => c.Id == actionResult.ActorId);
+        BattleCombatantState target = state.Combatants.First(c => c.Id == actionResult.TargetId);
+
+        Console.WriteLine($"{actor.Name} attacked {target.Name} for {actionResult.DamageDealt} damage.");
+
+        if (actionResult.TargetDefeated)
+        {
+            Console.WriteLine($"{target.Name} was defeated.");
+        }
+
+        Console.WriteLine();
+        WriteBattleState(state);
     }
 
     private static void WriteBattleResult(BattleResult result)

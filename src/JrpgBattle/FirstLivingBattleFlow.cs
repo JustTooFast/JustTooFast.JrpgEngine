@@ -10,20 +10,49 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class FirstLivingBattleFlow : IBattleFlow
 {
-    public string GetNextActorId(BattleState state)
+    private string? _readyActorId;
+
+    public BattleFlowResult Advance(BattleState state)
     {
         if (state is null)
         {
             throw new ArgumentNullException(nameof(state));
         }
 
-        var actor = state.Combatants.FirstOrDefault(c => c.IsAlive);
-
-        if (actor is null)
+        if (!string.IsNullOrWhiteSpace(_readyActorId))
         {
-            throw new InvalidOperationException("No living combatants found.");
+            return new BattleFlowResult(
+                HasChanged: false,
+                ReadyActorId: _readyActorId);
         }
 
-        return actor.Id;
+        BattleCombatantState? actor = state.Combatants.FirstOrDefault(c => c.IsAlive);
+        if (actor is null)
+        {
+            return new BattleFlowResult(
+                HasChanged: false,
+                ReadyActorId: null);
+        }
+
+        _readyActorId = actor.Id;
+
+        return new BattleFlowResult(
+            HasChanged: true,
+            ReadyActorId: _readyActorId);
+    }
+
+    public void ConsumeReadyActor(string actorId)
+    {
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
+        }
+
+        if (!string.Equals(_readyActorId, actorId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Ready actor does not match the actor being consumed.");
+        }
+
+        _readyActorId = null;
     }
 }
