@@ -6,4 +6,6 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 public enum BattleActionKind
 {
     Attack = 0,
+    Defend = 1,
+    Escape = 2,
 }

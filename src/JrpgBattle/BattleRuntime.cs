@@ -213,6 +213,24 @@ public sealed class BattleRuntime : IBattleRuntime
         BattleActionResult actionResult,
         bool playerInputStillNeeded = false)
     {
+        if (actionResult.ActionKind == BattleActionKind.Escape)
+        {
+            BattleState escapedBattleState = new(
+                combatants: _runtimeState.BattleState.Combatants,
+                isEnded: true,
+                outcome: BattleOutcome.Escaped);
+
+            _runtimeState.SetBattleState(escapedBattleState);
+            _runtimeState.SetPendingActor(null);
+            _runtimeState.SetPhase(BattleRuntimePhase.Ended);
+
+            return new BattleAdvanceResult(
+                hasChanged: true,
+                isPlayerInputNeeded: false,
+                actionResult: actionResult,
+                battleResult: new BattleResult(BattleOutcome.Escaped, reward: null));
+        }
+
         BattleState updatedBattleState = ApplyActionResult(_runtimeState.BattleState, actionResult);
         _runtimeState.SetBattleState(updatedBattleState);
 

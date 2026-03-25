@@ -45,35 +45,55 @@ public sealed class FixedDamageBattleActionResolver : IBattleActionResolver
             throw new InvalidOperationException("Actor is not alive.");
         }
 
-        if (action.ActionKind != BattleActionKind.Attack)
+        switch (action.ActionKind)
         {
-            throw new NotSupportedException($"Action '{action.ActionKind}' is not supported in v0.");
+            case BattleActionKind.Attack:
+            {
+                var target = state.Combatants.FirstOrDefault(c => c.Id == action.TargetId);
+                if (target is null)
+                {
+                    throw new InvalidOperationException($"Target '{action.TargetId}' not found.");
+                }
+
+                if (!target.IsAlive)
+                {
+                    throw new InvalidOperationException("Target is not alive.");
+                }
+
+                if (actor.Team == target.Team)
+                {
+                    throw new InvalidOperationException("Cannot target a combatant on the same team.");
+                }
+
+                var damage = Math.Min(_damage, target.CurrentHp);
+                var targetDefeated = target.CurrentHp - damage <= 0;
+
+                return new BattleActionResult(
+                    actor.Id,
+                    target.Id,
+                    action.ActionKind,
+                    damage,
+                    targetDefeated);
+            }
+
+            case BattleActionKind.Defend:
+                return new BattleActionResult(
+                    actor.Id,
+                    targetId: null,
+                    action.ActionKind,
+                    damageDealt: 0,
+                    targetDefeated: false);
+
+            case BattleActionKind.Escape:
+                return new BattleActionResult(
+                    actor.Id,
+                    targetId: null,
+                    action.ActionKind,
+                    damageDealt: 0,
+                    targetDefeated: false);
+
+            default:
+                throw new NotSupportedException($"Action '{action.ActionKind}' is not supported in v0.");
         }
-
-        var target = state.Combatants.FirstOrDefault(c => c.Id == action.TargetId);
-        if (target is null)
-        {
-            throw new InvalidOperationException($"Target '{action.TargetId}' not found.");
-        }
-
-        if (!target.IsAlive)
-        {
-            throw new InvalidOperationException("Target is not alive.");
-        }
-
-        if (actor.Team == target.Team)
-        {
-            throw new InvalidOperationException("Cannot target a combatant on the same team.");
-        }
-
-        var damage = Math.Min(_damage, target.CurrentHp);
-        var targetDefeated = target.CurrentHp - damage <= 0;
-
-        return new BattleActionResult(
-            actor.Id,
-            target.Id,
-            action.ActionKind,
-            damage,
-            targetDefeated);
     }
 }
