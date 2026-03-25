@@ -12,7 +12,8 @@ public sealed record BattleActionResult
         string? targetId,
         BattleActionKind actionKind,
         int damageDealt,
-        bool targetDefeated)
+        bool targetDefeated,
+        bool wasMiss)
     {
         if (string.IsNullOrWhiteSpace(actorId))
         {
@@ -29,11 +30,27 @@ public sealed record BattleActionResult
             throw new ArgumentOutOfRangeException(nameof(damageDealt), "Damage cannot be negative.");
         }
 
+        if (wasMiss && actionKind != BattleActionKind.Attack)
+        {
+            throw new ArgumentException("Only attack actions can miss.", nameof(wasMiss));
+        }
+
+        if (wasMiss && damageDealt != 0)
+        {
+            throw new ArgumentException("Missed attacks cannot deal damage.", nameof(damageDealt));
+        }
+
+        if (wasMiss && targetDefeated)
+        {
+            throw new ArgumentException("Missed attacks cannot defeat a target.", nameof(targetDefeated));
+        }
+
         ActorId = actorId;
         TargetId = targetId;
         ActionKind = actionKind;
         DamageDealt = damageDealt;
         TargetDefeated = targetDefeated;
+        WasMiss = wasMiss;
     }
 
     public string ActorId { get; }
@@ -45,4 +62,6 @@ public sealed record BattleActionResult
     public int DamageDealt { get; }
 
     public bool TargetDefeated { get; }
+
+    public bool WasMiss { get; }
 }

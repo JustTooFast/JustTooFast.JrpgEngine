@@ -73,7 +73,8 @@ public sealed class FixedDamageBattleActionResolver : IBattleActionResolver
                     target.Id,
                     action.ActionKind,
                     damage,
-                    targetDefeated);
+                    targetDefeated,
+                    wasMiss: false);
             }
 
             case BattleActionKind.Defend:
@@ -82,7 +83,8 @@ public sealed class FixedDamageBattleActionResolver : IBattleActionResolver
                     targetId: null,
                     action.ActionKind,
                     damageDealt: 0,
-                    targetDefeated: false);
+                    targetDefeated: false,
+                    wasMiss: false);
 
             case BattleActionKind.Escape:
                 return new BattleActionResult(
@@ -90,7 +92,8 @@ public sealed class FixedDamageBattleActionResolver : IBattleActionResolver
                     targetId: null,
                     action.ActionKind,
                     damageDealt: 0,
-                    targetDefeated: false);
+                    targetDefeated: false,
+                    wasMiss: false);
 
             default:
                 throw new NotSupportedException($"Action '{action.ActionKind}' is not supported in v0.");
