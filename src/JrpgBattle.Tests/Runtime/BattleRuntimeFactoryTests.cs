@@ -20,7 +20,7 @@ public sealed class BattleRuntimeFactoryTests
                 null!,
                 new AlwaysAttackEnemyActionChooser(),
                 new FirstLivingEnemyTargetChooser(),
-                new FixedDamageBattleActionResolver(5),
+                CreateFixedResolver(),
                 new FixedXpBattleRewardCalculator(10),
                 new AlwaysBlockOnPlayerChoicePolicy()));
     }
@@ -33,7 +33,7 @@ public sealed class BattleRuntimeFactoryTests
                 new FirstLivingBattleFlow(),
                 null!,
                 new FirstLivingEnemyTargetChooser(),
-                new FixedDamageBattleActionResolver(5),
+                CreateFixedResolver(),
                 new FixedXpBattleRewardCalculator(10),
                 new AlwaysBlockOnPlayerChoicePolicy()));
     }
@@ -46,7 +46,7 @@ public sealed class BattleRuntimeFactoryTests
                 new FirstLivingBattleFlow(),
                 new AlwaysAttackEnemyActionChooser(),
                 null!,
-                new FixedDamageBattleActionResolver(5),
+                CreateFixedResolver(),
                 new FixedXpBattleRewardCalculator(10),
                 new AlwaysBlockOnPlayerChoicePolicy()));
     }
@@ -72,7 +72,7 @@ public sealed class BattleRuntimeFactoryTests
                 new FirstLivingBattleFlow(),
                 new AlwaysAttackEnemyActionChooser(),
                 new FirstLivingEnemyTargetChooser(),
-                new FixedDamageBattleActionResolver(5),
+                CreateFixedResolver(),
                 null!,
                 new AlwaysBlockOnPlayerChoicePolicy()));
     }
@@ -85,7 +85,7 @@ public sealed class BattleRuntimeFactoryTests
                 new FirstLivingBattleFlow(),
                 new AlwaysAttackEnemyActionChooser(),
                 new FirstLivingEnemyTargetChooser(),
-                new FixedDamageBattleActionResolver(5),
+                CreateFixedResolver(),
                 new FixedXpBattleRewardCalculator(10),
                 null!));
     }
@@ -126,7 +126,7 @@ public sealed class BattleRuntimeFactoryTests
             new FirstLivingBattleFlow(),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(5),
+            CreateFixedResolver(),
             new FixedXpBattleRewardCalculator(10),
             new AlwaysBlockOnPlayerChoicePolicy());
     }
@@ -142,5 +142,12 @@ public sealed class BattleRuntimeFactoryTests
             [
                 new BattleCombatantDefinition("slime", "Slime", BattleTeam.Enemy, 10)
             ]);
+    }
+
+    private static IBattleActionResolver CreateFixedResolver()
+    {
+        return new FixedDamageBattleActionDecorator(
+            new DefaultBattleActionResolver(),
+            damage: 5);
     }
 }

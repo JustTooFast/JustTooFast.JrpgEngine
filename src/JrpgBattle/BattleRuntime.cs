@@ -213,7 +213,7 @@ public sealed class BattleRuntime : IBattleRuntime
         BattleActionResult actionResult,
         bool playerInputStillNeeded = false)
     {
-        if (actionResult.ActionKind == BattleActionKind.Escape)
+        if (actionResult.ActionKind == BattleActionKind.Escape && actionResult.WasEscapeSuccessful)
         {
             BattleState escapedBattleState = new(
                 combatants: _runtimeState.BattleState.Combatants,

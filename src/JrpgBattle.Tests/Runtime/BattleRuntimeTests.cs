@@ -389,6 +389,53 @@ public sealed class BattleRuntimeTests
         Assert.AreEqual(15, hero.CurrentHp);
     }
 
+    [TestMethod]
+    public void SubmitPlayerAction_Should_Not_End_Battle_When_Escape_Fails()
+    {
+        // Arrange
+        IBattleRuntime runtime = CreateRuntimeWithFailedEscape();
+
+        BattleAdvanceResult first = runtime.Advance();
+        Assert.IsTrue(first.IsPlayerInputNeeded);
+
+        // Act
+        BattleAdvanceResult result = runtime.SubmitPlayerAction(
+            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
+
+        // Assert
+        Assert.IsNotNull(result.ActionResult);
+        Assert.IsFalse(result.ActionResult.WasEscapeSuccessful);
+        Assert.IsNull(result.BattleResult);
+
+        BattleRuntimeView view = runtime.GetView();
+        Assert.IsFalse(view.State.IsEnded);
+        Assert.AreEqual(BattleOutcome.None, view.State.Outcome);
+    }
+
+    [TestMethod]
+    public void SubmitPlayerAction_Should_End_Battle_When_Escape_Succeeds()
+    {
+        // Arrange
+        IBattleRuntime runtime = CreateRuntimeWithSuccessfulEscape();
+
+        BattleAdvanceResult first = runtime.Advance();
+        Assert.IsTrue(first.IsPlayerInputNeeded);
+
+        // Act
+        BattleAdvanceResult result = runtime.SubmitPlayerAction(
+            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
+
+        // Assert
+        Assert.IsNotNull(result.ActionResult);
+        Assert.IsTrue(result.ActionResult.WasEscapeSuccessful);
+        Assert.IsNotNull(result.BattleResult);
+        Assert.AreEqual(BattleOutcome.Escaped, result.BattleResult.Outcome);
+
+        BattleRuntimeView view = runtime.GetView();
+        Assert.IsTrue(view.State.IsEnded);
+        Assert.AreEqual(BattleOutcome.Escaped, view.State.Outcome);
+    }
+
     private static IBattleRuntime CreateRuntime()
     {
         BattleDefinition definition = new(
@@ -405,7 +452,7 @@ public sealed class BattleRuntimeTests
             new FirstLivingBattleFlow(),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(5),
+            CreateFixedResolver(),
             new FixedXpBattleRewardCalculator(10),
             new AlwaysBlockOnPlayerChoicePolicy());
 
@@ -429,7 +476,7 @@ public sealed class BattleRuntimeTests
             new FirstLivingBattleFlow(),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(5),
+            CreateFixedResolver(),
             new FixedXpBattleRewardCalculator(10),
             new AlwaysBlockOnPlayerChoicePolicy());
 
@@ -446,7 +493,7 @@ public sealed class BattleRuntimeTests
             new RoundRobinBattleFlow(BattleTeam.Enemy),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(5),
+            CreateFixedResolver(),
             new FixedXpBattleRewardCalculator(10),
             new AlwaysBlockOnPlayerChoicePolicy());
 
@@ -463,7 +510,64 @@ public sealed class BattleRuntimeTests
             new RoundRobinBattleFlow(BattleTeam.Enemy),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(5),
+            CreateFixedResolver(),
+            new FixedXpBattleRewardCalculator(10),
+            new AlwaysBlockOnPlayerChoicePolicy());
+
+        return factory.Create(definition);
+    }
+
+    private static IBattleActionResolver CreateFixedResolver()
+    {
+        return new FixedDamageBattleActionDecorator(
+            new DefaultBattleActionResolver(),
+            damage: 5);
+    }
+
+    private static IBattleRuntime CreateRuntimeWithFailedEscape()
+    {
+        BattleDefinition definition = new(
+            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
+            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
+
+        IBattleActionResolver actionResolver =
+            new EscapeChanceBattleActionDecorator(
+                new FixedDamageBattleActionDecorator(
+                    new DefaultBattleActionResolver(),
+                    damage: 5),
+                escapeSuccessChance: 0.0,
+                seed: 123);
+
+        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
+            new FirstLivingBattleFlow(),
+            new AlwaysAttackEnemyActionChooser(),
+            new FirstLivingEnemyTargetChooser(),
+            actionResolver,
+            new FixedXpBattleRewardCalculator(10),
+            new AlwaysBlockOnPlayerChoicePolicy());
+
+        return factory.Create(definition);
+    }
+
+    private static IBattleRuntime CreateRuntimeWithSuccessfulEscape()
+    {
+        BattleDefinition definition = new(
+            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
+            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
+
+        IBattleActionResolver actionResolver =
+            new EscapeChanceBattleActionDecorator(
+                new FixedDamageBattleActionDecorator(
+                    new DefaultBattleActionResolver(),
+                    damage: 5),
+                escapeSuccessChance: 1.0,
+                seed: 123);
+
+        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
+            new FirstLivingBattleFlow(),
+            new AlwaysAttackEnemyActionChooser(),
+            new FirstLivingEnemyTargetChooser(),
+            actionResolver,
             new FixedXpBattleRewardCalculator(10),
             new AlwaysBlockOnPlayerChoicePolicy());
 

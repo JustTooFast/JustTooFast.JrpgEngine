@@ -1,0 +1,54 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JrpgBattle", "JrpgBattle\JrpgBattle.csproj", "{1E78C176-BDF6-B104-D9EF-2AD6ACDE2313}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JrpgGameHost", "JrpgGameHost\JrpgGameHost.csproj", "{E6D05B4F-CAF2-2B7E-1449-E10AA080118B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JrpgBattle.Abstractions", "JrpgBattle.Abstractions\JrpgBattle.Abstractions.csproj", "{F6CCB824-90EB-D7E0-4BF7-20D6F8D5AED4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JrpgEngine", "JrpgEngine\JrpgEngine.csproj", "{1949D301-9165-C783-A0A9-3436CBD08343}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JrpgBattle.ConsoleHost", "JrpgBattle.ConsoleHost\JrpgBattle.ConsoleHost.csproj", "{4636E2D6-2F09-E2B6-1650-1AB8979CA332}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JrpgBattle.Tests", "JrpgBattle.Tests\JrpgBattle.Tests.csproj", "{8347F4D8-2544-E590-BD4B-6529B2FD3A8A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1E78C176-BDF6-B104-D9EF-2AD6ACDE2313}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E78C176-BDF6-B104-D9EF-2AD6ACDE2313}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E78C176-BDF6-B104-D9EF-2AD6ACDE2313}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E78C176-BDF6-B104-D9EF-2AD6ACDE2313}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E6D05B4F-CAF2-2B7E-1449-E10AA080118B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6D05B4F-CAF2-2B7E-1449-E10AA080118B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6D05B4F-CAF2-2B7E-1449-E10AA080118B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E6D05B4F-CAF2-2B7E-1449-E10AA080118B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6CCB824-90EB-D7E0-4BF7-20D6F8D5AED4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6CCB824-90EB-D7E0-4BF7-20D6F8D5AED4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6CCB824-90EB-D7E0-4BF7-20D6F8D5AED4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6CCB824-90EB-D7E0-4BF7-20D6F8D5AED4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1949D301-9165-C783-A0A9-3436CBD08343}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1949D301-9165-C783-A0A9-3436CBD08343}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1949D301-9165-C783-A0A9-3436CBD08343}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1949D301-9165-C783-A0A9-3436CBD08343}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4636E2D6-2F09-E2B6-1650-1AB8979CA332}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4636E2D6-2F09-E2B6-1650-1AB8979CA332}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4636E2D6-2F09-E2B6-1650-1AB8979CA332}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4636E2D6-2F09-E2B6-1650-1AB8979CA332}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8347F4D8-2544-E590-BD4B-6529B2FD3A8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8347F4D8-2544-E590-BD4B-6529B2FD3A8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8347F4D8-2544-E590-BD4B-6529B2FD3A8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8347F4D8-2544-E590-BD4B-6529B2FD3A8A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {083F7154-DF97-4A8B-94AC-70A01D239B43}
+	EndGlobalSection
+EndGlobal

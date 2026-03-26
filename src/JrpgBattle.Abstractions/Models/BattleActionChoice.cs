@@ -17,9 +17,21 @@ public sealed record BattleActionChoice
             throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
-        if (actionKind == BattleActionKind.Attack && string.IsNullOrWhiteSpace(targetId))
+        bool targetAllowed = actionKind is BattleActionKind.Attack
+            or BattleActionKind.Magic
+            or BattleActionKind.Item
+            or BattleActionKind.Skill;
+
+        bool targetRequired = actionKind == BattleActionKind.Attack;
+
+        if (targetRequired && string.IsNullOrWhiteSpace(targetId))
         {
             throw new ArgumentException("Attack actions require a target.", nameof(targetId));
+        }
+
+        if (!targetAllowed && !string.IsNullOrWhiteSpace(targetId))
+        {
+            throw new ArgumentException("This action kind cannot have a target.", nameof(targetId));
         }
 
         ActorId = actorId;

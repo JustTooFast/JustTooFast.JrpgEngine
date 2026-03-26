@@ -10,11 +10,19 @@ public static class Program
 {
     public static int Main(string[] args)
     {
+        IBattleActionResolver actionResolver =
+            new EscapeChanceBattleActionDecorator(
+                new FixedDamageBattleActionDecorator(
+                    new DefaultBattleActionResolver(),
+                    damage: 5),
+                escapeSuccessChance: 1.0,
+                seed: 12345);
+
         IBattleRuntimeFactory battleRuntimeFactory = new BattleRuntimeFactory(
             new FirstLivingBattleFlow(),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(damage: 5),
+            actionResolver,
             new FixedXpBattleRewardCalculator(experiencePoints: 10),
             new AlwaysBlockOnPlayerChoicePolicy());
 

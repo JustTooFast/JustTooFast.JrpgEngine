@@ -23,7 +23,8 @@ public sealed class BattleRuntimeNonBlockingPolicyTests
             new FirstLivingBattleFlow(),
             new AlwaysAttackEnemyActionChooser(),
             new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionResolver(5),
+            new FixedDamageBattleActionDecorator(
+                new DefaultBattleActionResolver(), 5),
             new FixedXpBattleRewardCalculator(10),
             new NeverBlockOnPlayerChoicePolicy());
 

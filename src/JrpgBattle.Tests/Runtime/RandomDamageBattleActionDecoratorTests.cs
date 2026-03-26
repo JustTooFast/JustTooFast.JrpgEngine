@@ -3,19 +3,22 @@
 
 using System;
 using JustTooFast.JrpgBattle;
+using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace JustTooFast.JrpgBattle.Tests.Runtime;
 
 [TestClass]
-public sealed class RandomDamageBattleActionResolverTests
+public sealed class RandomDamageBattleActionDecoratorTests
 {
     [TestMethod]
     public void Resolve_Should_Be_Deterministic_With_Seed()
     {
-        var resolver1 = new RandomDamageBattleActionResolver(1, 5, 0.0, 123);
-        var resolver2 = new RandomDamageBattleActionResolver(1, 5, 0.0, 123);
+        var resolver1 = new RandomDamageBattleActionDecorator(
+            new DefaultBattleActionResolver(), 1, 5, 0.0, 123);
+        var resolver2 = new RandomDamageBattleActionDecorator(
+            new DefaultBattleActionResolver(), 1, 5, 0.0, 123);
 
         var state = CreateState();
 
@@ -38,7 +41,8 @@ public sealed class RandomDamageBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Miss_When_MissChance_Is_One()
     {
-        var resolver = new RandomDamageBattleActionResolver(1, 5, 1.0, 123);
+        var resolver = new RandomDamageBattleActionDecorator(
+            new DefaultBattleActionResolver(), 1, 5, 1.0, 123);
 
         var state = CreateState();
 

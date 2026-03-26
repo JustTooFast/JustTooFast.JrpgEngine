@@ -8,4 +8,8 @@ public enum BattleActionKind
     Attack = 0,
     Defend = 1,
     Escape = 2,
+    Magic = 3,
+    Item = 4,
+    Skill = 5,
+    Wait = 6,
 }
