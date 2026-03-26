@@ -210,6 +210,27 @@ public sealed class EscapeChanceBattleActionDecoratorTests
         Assert.AreEqual("Actor is not alive.", ex.Message);
     }
 
+    [TestMethod]
+    public void Resolve_Should_Delegate_NonEscape_NoOp_Actions_To_Inner_Resolver()
+    {
+        IBattleActionResolver resolver = new EscapeChanceBattleActionDecorator(
+            new DefaultBattleActionResolver(),
+            escapeSuccessChance: 0.5,
+            seed: 123);
+
+        BattleActionResult result = resolver.Resolve(
+            CreateState(),
+            new BattleActionChoice("hero", BattleActionKind.Wait, targetId: null));
+
+        Assert.AreEqual(BattleActionKind.Wait, result.ActionKind);
+        Assert.AreEqual("hero", result.ActorId);
+        Assert.IsNull(result.TargetId);
+        Assert.AreEqual(0, result.DamageDealt);
+        Assert.IsFalse(result.TargetDefeated);
+        Assert.IsFalse(result.WasMiss);
+        Assert.IsFalse(result.WasEscapeSuccessful);
+    }
+
     private static BattleState CreateState()
     {
         return new BattleState(

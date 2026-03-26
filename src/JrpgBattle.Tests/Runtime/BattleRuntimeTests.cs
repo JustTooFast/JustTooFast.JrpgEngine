@@ -85,7 +85,7 @@ public sealed class BattleRuntimeTests
         Assert.AreEqual(5, slime.CurrentHp);
     }
 
-        [TestMethod]
+    [TestMethod]
     public void SubmitPlayerAction_Should_Not_End_Battle_When_Action_Is_Defend()
     {
         IBattleRuntime runtime = CreateRuntime();
@@ -436,6 +436,73 @@ public sealed class BattleRuntimeTests
         Assert.AreEqual(BattleOutcome.Escaped, view.State.Outcome);
     }
 
+    [TestMethod]
+    public void SubmitPlayerAction_Should_Continue_Battle_After_Failed_Escape()
+    {
+        // Arrange
+        IBattleRuntime runtime = CreateRuntimeWithFailedEscape();
+
+        _ = runtime.Advance();
+
+        // Act
+        BattleAdvanceResult escapeResult = runtime.SubmitPlayerAction(
+            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
+
+        Assert.IsFalse(escapeResult.ActionResult!.WasEscapeSuccessful);
+
+        BattleAdvanceResult next = runtime.Advance();
+
+        // Assert
+        Assert.IsTrue(next.HasChanged);
+        Assert.IsTrue(
+            next.IsPlayerInputNeeded || next.ActionResult != null,
+            "Battle should continue after failed escape.");
+    }
+
+    [TestMethod]
+    public void SubmitPlayerAction_Should_Not_Change_State_When_Action_Is_Wait()
+    {
+        // Arrange
+        IBattleRuntime runtime = CreateRuntime();
+
+        _ = runtime.Advance();
+
+        BattleRuntimeView beforeView = runtime.GetView();
+        int heroHpBefore = beforeView.State.Combatants.Single(c => c.Id == "hero").CurrentHp;
+        int slimeHpBefore = beforeView.State.Combatants.Single(c => c.Id == "slime_1").CurrentHp;
+
+        // Act
+        BattleAdvanceResult result = runtime.SubmitPlayerAction(
+            new BattleActionChoice("hero", BattleActionKind.Wait, targetId: null));
+
+        // Assert
+        Assert.IsNotNull(result.ActionResult);
+        Assert.AreEqual(BattleActionKind.Wait, result.ActionResult.ActionKind);
+        Assert.IsNull(result.BattleResult);
+
+        BattleRuntimeView afterView = runtime.GetView();
+        int heroHpAfter = afterView.State.Combatants.Single(c => c.Id == "hero").CurrentHp;
+        int slimeHpAfter = afterView.State.Combatants.Single(c => c.Id == "slime_1").CurrentHp;
+
+        Assert.AreEqual(heroHpBefore, heroHpAfter);
+        Assert.AreEqual(slimeHpBefore, slimeHpAfter);
+    }
+
+    [TestMethod]
+    public void Advance_Should_Resolve_Enemy_Defend_Without_Requesting_Target()
+    {
+        IBattleRuntime runtime = CreateEnemyFirstDefendRuntime();
+
+        BattleAdvanceResult result = runtime.Advance();
+
+        Assert.IsTrue(result.HasChanged);
+        Assert.IsFalse(result.IsPlayerInputNeeded);
+        Assert.IsNotNull(result.ActionResult);
+        Assert.AreEqual(BattleActionKind.Defend, result.ActionResult.ActionKind);
+        Assert.IsNull(result.ActionResult.TargetId);
+        Assert.IsNull(result.BattleResult);
+    }
+
     private static IBattleRuntime CreateRuntime()
     {
         BattleDefinition definition = new(
@@ -449,12 +516,12 @@ public sealed class BattleRuntimeTests
             ]);
 
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            CreateFixedResolver(),
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new FirstLivingBattleFlow(),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () => CreateFixedResolver(),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         return factory.Create(definition);
     }
@@ -473,12 +540,12 @@ public sealed class BattleRuntimeTests
             ]);
 
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            CreateFixedResolver(),
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new FirstLivingBattleFlow(),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () => CreateFixedResolver(),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         return factory.Create(definition);
     }
@@ -490,12 +557,12 @@ public sealed class BattleRuntimeTests
             [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
 
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new RoundRobinBattleFlow(BattleTeam.Enemy),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            CreateFixedResolver(),
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Enemy),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () => CreateFixedResolver(),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         return factory.Create(definition);
     }
@@ -507,12 +574,12 @@ public sealed class BattleRuntimeTests
             [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
 
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new RoundRobinBattleFlow(BattleTeam.Enemy),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            CreateFixedResolver(),
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Enemy),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () => CreateFixedResolver(),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         return factory.Create(definition);
     }
@@ -530,21 +597,19 @@ public sealed class BattleRuntimeTests
             [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
             [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
 
-        IBattleActionResolver actionResolver =
-            new EscapeChanceBattleActionDecorator(
-                new FixedDamageBattleActionDecorator(
-                    new DefaultBattleActionResolver(),
-                    damage: 5),
-                escapeSuccessChance: 0.0,
-                seed: 123);
-
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            actionResolver,
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new FirstLivingBattleFlow(),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () =>
+                new EscapeChanceBattleActionDecorator(
+                    new FixedDamageBattleActionDecorator(
+                        new DefaultBattleActionResolver(),
+                        damage: 5),
+                    escapeSuccessChance: 0.0,
+                    seed: 123),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         return factory.Create(definition);
     }
@@ -555,21 +620,36 @@ public sealed class BattleRuntimeTests
             [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
             [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
 
-        IBattleActionResolver actionResolver =
-            new EscapeChanceBattleActionDecorator(
-                new FixedDamageBattleActionDecorator(
-                    new DefaultBattleActionResolver(),
-                    damage: 5),
-                escapeSuccessChance: 1.0,
-                seed: 123);
+        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
+            flowFactory: () => new FirstLivingBattleFlow(),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () =>
+                new EscapeChanceBattleActionDecorator(
+                    new FixedDamageBattleActionDecorator(
+                        new DefaultBattleActionResolver(),
+                        damage: 5),
+                    escapeSuccessChance: 1.0,
+                    seed: 123),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
+
+        return factory.Create(definition);
+    }
+
+    private static IBattleRuntime CreateEnemyFirstDefendRuntime()
+    {
+        BattleDefinition definition = new(
+            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
+            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
 
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            actionResolver,
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Enemy),
+            enemyActionChooserFactory: () => new AlwaysDefendEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () => CreateFixedResolver(),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         return factory.Create(definition);
     }

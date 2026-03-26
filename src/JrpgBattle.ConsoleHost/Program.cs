@@ -1,8 +1,10 @@
 // Copyright 2026 Matthew Yancer
 // SPDX-License-Identifier: Apache-2.0
 
+using System;
 using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
+using JustTooFast.JrpgBattle.Abstractions.Models;
 
 namespace JustTooFast.JrpgBattle.ConsoleHost;
 
@@ -10,21 +12,22 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        IBattleActionResolver actionResolver =
-            new EscapeChanceBattleActionDecorator(
-                new FixedDamageBattleActionDecorator(
-                    new DefaultBattleActionResolver(),
-                    damage: 5),
-                escapeSuccessChance: 1.0,
-                seed: 12345);
-
         IBattleRuntimeFactory battleRuntimeFactory = new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            actionResolver,
-            new FixedXpBattleRewardCalculator(experiencePoints: 10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new TeamPhaseBattleFlow(BattleTeam.Party),
+            enemyActionChooserFactory: () => new RandomEnemyActionChooser(Environment.TickCount),
+            enemyTargetChooserFactory: () => new LowestLifeEnemyTargetChooser(),
+            actionResolverFactory: () =>
+                new EscapeChanceBattleActionDecorator(
+                    new RandomDamageBattleActionDecorator(
+                        new DefaultBattleActionResolver(),
+                        minDamage: 3,
+                        maxDamage: 7,
+                        missChance: 0.10,
+                        seed: Environment.TickCount),
+                    escapeSuccessChance: 0.75,
+                    seed: Environment.TickCount),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(experiencePoints: 10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
 
         IBattleRewardApplier battleRewardApplier = new ConsoleBattleRewardApplier();
 

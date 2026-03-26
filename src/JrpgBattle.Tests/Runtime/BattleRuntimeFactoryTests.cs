@@ -17,12 +17,12 @@ public sealed class BattleRuntimeFactoryTests
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                null!,
-                new AlwaysAttackEnemyActionChooser(),
-                new FirstLivingEnemyTargetChooser(),
-                CreateFixedResolver(),
-                new FixedXpBattleRewardCalculator(10),
-                new AlwaysBlockOnPlayerChoicePolicy()));
+                flowFactory: null!,
+                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+                actionResolverFactory: () => CreateFixedResolver(),
+                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
     }
 
     [TestMethod]
@@ -30,12 +30,12 @@ public sealed class BattleRuntimeFactoryTests
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                new FirstLivingBattleFlow(),
-                null!,
-                new FirstLivingEnemyTargetChooser(),
-                CreateFixedResolver(),
-                new FixedXpBattleRewardCalculator(10),
-                new AlwaysBlockOnPlayerChoicePolicy()));
+                flowFactory: () => new FirstLivingBattleFlow(),
+                enemyActionChooserFactory: null!,
+                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+                actionResolverFactory: () => CreateFixedResolver(),
+                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
     }
 
     [TestMethod]
@@ -43,12 +43,12 @@ public sealed class BattleRuntimeFactoryTests
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                new FirstLivingBattleFlow(),
-                new AlwaysAttackEnemyActionChooser(),
-                null!,
-                CreateFixedResolver(),
-                new FixedXpBattleRewardCalculator(10),
-                new AlwaysBlockOnPlayerChoicePolicy()));
+                flowFactory: () => new FirstLivingBattleFlow(),
+                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+                enemyTargetChooserFactory: null!,
+                actionResolverFactory: () => CreateFixedResolver(),
+                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
     }
 
     [TestMethod]
@@ -56,12 +56,12 @@ public sealed class BattleRuntimeFactoryTests
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                new FirstLivingBattleFlow(),
-                new AlwaysAttackEnemyActionChooser(),
-                new FirstLivingEnemyTargetChooser(),
-                null!,
-                new FixedXpBattleRewardCalculator(10),
-                new AlwaysBlockOnPlayerChoicePolicy()));
+                flowFactory: () => new FirstLivingBattleFlow(),
+                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+                actionResolverFactory: null!,
+                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
     }
 
     [TestMethod]
@@ -69,12 +69,12 @@ public sealed class BattleRuntimeFactoryTests
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                new FirstLivingBattleFlow(),
-                new AlwaysAttackEnemyActionChooser(),
-                new FirstLivingEnemyTargetChooser(),
-                CreateFixedResolver(),
-                null!,
-                new AlwaysBlockOnPlayerChoicePolicy()));
+                flowFactory: () => new FirstLivingBattleFlow(),
+                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+                actionResolverFactory: () => CreateFixedResolver(),
+                rewardCalculatorFactory: null!,
+                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
     }
 
     [TestMethod]
@@ -82,12 +82,12 @@ public sealed class BattleRuntimeFactoryTests
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                new FirstLivingBattleFlow(),
-                new AlwaysAttackEnemyActionChooser(),
-                new FirstLivingEnemyTargetChooser(),
-                CreateFixedResolver(),
-                new FixedXpBattleRewardCalculator(10),
-                null!));
+                flowFactory: () => new FirstLivingBattleFlow(),
+                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+                actionResolverFactory: () => CreateFixedResolver(),
+                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+                playerChoiceBlockingPolicyFactory: null!));
     }
 
     [TestMethod]
@@ -123,12 +123,12 @@ public sealed class BattleRuntimeFactoryTests
     private static IBattleRuntimeFactory CreateFactory()
     {
         return new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            CreateFixedResolver(),
-            new FixedXpBattleRewardCalculator(10),
-            new AlwaysBlockOnPlayerChoicePolicy());
+            flowFactory: () => new FirstLivingBattleFlow(),
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+            actionResolverFactory: () => CreateFixedResolver(),
+            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
     }
 
     private static BattleDefinition CreateDefinition()

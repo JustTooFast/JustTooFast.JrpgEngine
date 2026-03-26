@@ -45,7 +45,9 @@ public sealed class BattleRuntime : IBattleRuntime
 
     public BattleRuntimeView GetView()
     {
-        return new BattleRuntimeView(_runtimeState.BattleState);
+        return new BattleRuntimeView(
+            _runtimeState.BattleState,
+            _runtimeState.PendingActorId);
     }
 
     public BattleAdvanceResult Advance()
@@ -98,7 +100,12 @@ public sealed class BattleRuntime : IBattleRuntime
         _flow.ConsumeReadyActor(actor.Id);
 
         BattleActionKind actionKind = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
-        string targetId = _enemyTargetChooser.ChooseTargetId(_runtimeState.BattleState, actor.Id);
+
+        string? targetId = null;
+        if (ActionCanHaveTarget(actionKind))
+        {
+            targetId = _enemyTargetChooser.ChooseTargetId(_runtimeState.BattleState, actor.Id);
+        }
 
         BattleActionChoice action = new(
             actorId: actor.Id,
@@ -197,7 +204,12 @@ public sealed class BattleRuntime : IBattleRuntime
         _flow.ConsumeReadyActor(actor.Id);
 
         BattleActionKind actionKind = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
-        string targetId = _enemyTargetChooser.ChooseTargetId(_runtimeState.BattleState, actor.Id);
+
+        string? targetId = null;
+        if (ActionCanHaveTarget(actionKind))
+        {
+            targetId = _enemyTargetChooser.ChooseTargetId(_runtimeState.BattleState, actor.Id);
+        }
 
         BattleActionChoice action = new(
             actorId: actor.Id,
@@ -354,5 +366,13 @@ public sealed class BattleRuntime : IBattleRuntime
             combatants: combatants,
             isEnded: false,
             outcome: BattleOutcome.None);
+    }
+
+    private static bool ActionCanHaveTarget(BattleActionKind actionKind)
+    {
+        return actionKind is BattleActionKind.Attack
+            or BattleActionKind.Magic
+            or BattleActionKind.Item
+            or BattleActionKind.Skill;
     }
 }

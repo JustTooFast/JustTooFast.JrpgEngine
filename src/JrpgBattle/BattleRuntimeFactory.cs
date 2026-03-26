@@ -9,27 +9,27 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class BattleRuntimeFactory : IBattleRuntimeFactory
 {
-    private readonly IBattleFlow _flow;
-    private readonly IEnemyActionChooser _enemyActionChooser;
-    private readonly IEnemyTargetChooser _enemyTargetChooser;
-    private readonly IBattleActionResolver _actionResolver;
-    private readonly IBattleRewardCalculator _rewardCalculator;
-    private readonly IPlayerChoiceBlockingPolicy _playerChoiceBlockingPolicy;
+    private readonly Func<IBattleFlow> _flowFactory;
+    private readonly Func<IEnemyActionChooser> _enemyActionChooserFactory;
+    private readonly Func<IEnemyTargetChooser> _enemyTargetChooserFactory;
+    private readonly Func<IBattleActionResolver> _actionResolverFactory;
+    private readonly Func<IBattleRewardCalculator> _rewardCalculatorFactory;
+    private readonly Func<IPlayerChoiceBlockingPolicy> _playerChoiceBlockingPolicyFactory;
 
     public BattleRuntimeFactory(
-        IBattleFlow flow,
-        IEnemyActionChooser enemyActionChooser,
-        IEnemyTargetChooser enemyTargetChooser,
-        IBattleActionResolver actionResolver,
-        IBattleRewardCalculator rewardCalculator,
-        IPlayerChoiceBlockingPolicy playerChoiceBlockingPolicy)
+        Func<IBattleFlow> flowFactory,
+        Func<IEnemyActionChooser> enemyActionChooserFactory,
+        Func<IEnemyTargetChooser> enemyTargetChooserFactory,
+        Func<IBattleActionResolver> actionResolverFactory,
+        Func<IBattleRewardCalculator> rewardCalculatorFactory,
+        Func<IPlayerChoiceBlockingPolicy> playerChoiceBlockingPolicyFactory)
     {
-        _flow = flow ?? throw new ArgumentNullException(nameof(flow));
-        _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
-        _enemyTargetChooser = enemyTargetChooser ?? throw new ArgumentNullException(nameof(enemyTargetChooser));
-        _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
-        _rewardCalculator = rewardCalculator ?? throw new ArgumentNullException(nameof(rewardCalculator));
-        _playerChoiceBlockingPolicy = playerChoiceBlockingPolicy ?? throw new ArgumentNullException(nameof(playerChoiceBlockingPolicy));
+        _flowFactory = flowFactory ?? throw new ArgumentNullException(nameof(flowFactory));
+        _enemyActionChooserFactory = enemyActionChooserFactory ?? throw new ArgumentNullException(nameof(enemyActionChooserFactory));
+        _enemyTargetChooserFactory = enemyTargetChooserFactory ?? throw new ArgumentNullException(nameof(enemyTargetChooserFactory));
+        _actionResolverFactory = actionResolverFactory ?? throw new ArgumentNullException(nameof(actionResolverFactory));
+        _rewardCalculatorFactory = rewardCalculatorFactory ?? throw new ArgumentNullException(nameof(rewardCalculatorFactory));
+        _playerChoiceBlockingPolicyFactory = playerChoiceBlockingPolicyFactory ?? throw new ArgumentNullException(nameof(playerChoiceBlockingPolicyFactory));
     }
 
     public IBattleRuntime Create(BattleDefinition definition)
@@ -41,11 +41,11 @@ public sealed class BattleRuntimeFactory : IBattleRuntimeFactory
 
         return new BattleRuntime(
             definition,
-            _flow,
-            _enemyActionChooser,
-            _enemyTargetChooser,
-            _actionResolver,
-            _rewardCalculator,
-            _playerChoiceBlockingPolicy);
+            _flowFactory(),
+            _enemyActionChooserFactory(),
+            _enemyTargetChooserFactory(),
+            _actionResolverFactory(),
+            _rewardCalculatorFactory(),
+            _playerChoiceBlockingPolicyFactory());
     }
 }

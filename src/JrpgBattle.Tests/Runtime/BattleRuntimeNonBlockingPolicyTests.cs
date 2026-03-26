@@ -20,13 +20,13 @@ public sealed class BattleRuntimeNonBlockingPolicyTests
             [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
 
         IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            new FirstLivingBattleFlow(),
-            new AlwaysAttackEnemyActionChooser(),
-            new FirstLivingEnemyTargetChooser(),
-            new FixedDamageBattleActionDecorator(
-                new DefaultBattleActionResolver(), 5),
-            new FixedXpBattleRewardCalculator(10),
-            new NeverBlockOnPlayerChoicePolicy());
+                flowFactory: () => new FirstLivingBattleFlow(),
+                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
+                actionResolverFactory: () => new FixedDamageBattleActionDecorator(
+                    new DefaultBattleActionResolver(), 5),
+                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
+                playerChoiceBlockingPolicyFactory: () => new NeverBlockOnPlayerChoicePolicy());
 
         IBattleRuntime runtime = factory.Create(definition);
 

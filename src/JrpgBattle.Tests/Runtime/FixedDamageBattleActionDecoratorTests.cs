@@ -188,6 +188,24 @@ public sealed class FixedDamageBattleActionDecoratorTests
         Assert.AreEqual("Cannot target a combatant on the same team.", ex.Message);
     }
 
+    [TestMethod]
+    public void Resolve_Should_Delegate_NonAttack_Actions_To_Inner_Resolver()
+    {
+        IBattleActionResolver resolver = CreateFixedResolver();
+
+        BattleActionResult result = resolver.Resolve(
+            CreateDefaultState(),
+            new BattleActionChoice("hero", BattleActionKind.Wait, targetId: null));
+
+        Assert.AreEqual(BattleActionKind.Wait, result.ActionKind);
+        Assert.AreEqual("hero", result.ActorId);
+        Assert.IsNull(result.TargetId);
+        Assert.AreEqual(0, result.DamageDealt);
+        Assert.IsFalse(result.TargetDefeated);
+        Assert.IsFalse(result.WasMiss);
+        Assert.IsFalse(result.WasEscapeSuccessful);
+    }
+
     private static BattleState CreateDefaultState()
     {
         return CreateState(

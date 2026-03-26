@@ -22,7 +22,8 @@ public sealed class NeverBlockOnPlayerChoicePolicyTests
                 new BattleCombatantState("hero", "Hero", BattleTeam.Party, 10, 10)
             ],
             isEnded: false,
-            outcome: BattleOutcome.None));
+            outcome: BattleOutcome.None),
+            pendingPlayerActorId: null);
 
         bool result = policy.ShouldBlockAdvance(runtimeView);
 
