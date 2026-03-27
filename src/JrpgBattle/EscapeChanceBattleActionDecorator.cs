@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
@@ -32,11 +33,16 @@ public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
         _random = new Random(seed);
     }
 
-    public BattleActionResult Resolve(BattleState state, BattleActionChoice action)
+    public BattleResolution Resolve(BattleState state, string actorId, BattleActionChoice action)
     {
         if (state is null)
         {
             throw new ArgumentNullException(nameof(state));
+        }
+
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
         if (action is null)
@@ -44,28 +50,21 @@ public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
             throw new ArgumentNullException(nameof(action));
         }
 
+        BattleResolution inner = _innerResolver.Resolve(state, actorId, action);
+
         if (action.ActionKind != BattleActionKind.Escape)
         {
-            return _innerResolver.Resolve(state, action);
-        }
-
-        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == action.ActorId)
-            ?? throw new InvalidOperationException($"Actor '{action.ActorId}' not found.");
-
-        if (!actor.IsAlive)
-        {
-            throw new InvalidOperationException("Actor is not alive.");
+            return inner;
         }
 
         bool wasEscapeSuccessful = _random.NextDouble() < _escapeSuccessChance;
 
-        return new BattleActionResult(
-            actorId: actor.Id,
-            targetId: null,
-            actionKind: BattleActionKind.Escape,
-            damageDealt: 0,
-            targetDefeated: false,
-            wasMiss: false,
-            wasEscapeSuccessful: wasEscapeSuccessful);
+        List<BattleOperation> operations = inner.Operations.ToList();
+        operations.Add(
+            wasEscapeSuccessful
+                ? new EscapeSucceededOperation()
+                : new EscapeFailedOperation());
+
+        return new BattleResolution(operations);
     }
 }

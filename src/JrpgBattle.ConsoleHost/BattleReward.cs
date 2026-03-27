@@ -3,7 +3,7 @@
 
 using System;
 
-namespace JustTooFast.JrpgBattle.Abstractions.Models;
+namespace JustTooFast.JrpgBattle.ConsoleHost;
 
 public sealed record BattleReward
 {

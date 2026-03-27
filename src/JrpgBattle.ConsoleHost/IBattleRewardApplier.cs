@@ -3,7 +3,7 @@
 
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
-namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
+namespace JustTooFast.JrpgBattle.ConsoleHost;
 
 public interface IBattleRewardApplier
 {

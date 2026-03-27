@@ -2,25 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using System.Collections.Generic;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
-public sealed record BattleActionChoice
+public sealed record ActionResolvedOccurrence : BattleOccurrence
 {
-    public BattleActionChoice(
+    public ActionResolvedOccurrence(
+        string actorId,
         BattleActionKind actionKind,
-        string? actionId,
-        IReadOnlyList<string>? targetIds)
+        string? actionId)
     {
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
+        }
+
+        ActorId = actorId;
         ActionKind = actionKind;
         ActionId = string.IsNullOrWhiteSpace(actionId) ? null : actionId;
-        TargetIds = targetIds;
     }
+
+    public string ActorId { get; }
 
     public BattleActionKind ActionKind { get; }
 
     public string? ActionId { get; }
-
-    public IReadOnlyList<string>? TargetIds { get; }
 }

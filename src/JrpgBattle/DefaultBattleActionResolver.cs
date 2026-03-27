@@ -10,11 +10,16 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class DefaultBattleActionResolver : IBattleActionResolver
 {
-    public BattleActionResult Resolve(BattleState state, BattleActionChoice action)
+    public BattleResolution Resolve(BattleState state, string actorId, BattleActionChoice action)
     {
         if (state is null)
         {
             throw new ArgumentNullException(nameof(state));
+        }
+
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
         if (action is null)
@@ -22,96 +27,33 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
             throw new ArgumentNullException(nameof(action));
         }
 
-        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == action.ActorId)
-            ?? throw new InvalidOperationException($"Actor '{action.ActorId}' not found.");
+        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
+            ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
 
-        if (!actor.IsAlive)
+        if (actor.IsDefeated)
         {
-            throw new InvalidOperationException("Actor is not alive.");
+            throw new InvalidOperationException("Actor is defeated.");
         }
 
-        switch (action.ActionKind)
+        if (action.TargetIds is not null)
         {
-            case BattleActionKind.Attack:
-                return ResolveTargetedNoOp(state, actor, action, wasMiss: false);
+            foreach (string targetId in action.TargetIds)
+            {
+                if (string.IsNullOrWhiteSpace(targetId))
+                {
+                    throw new ArgumentException("Target id is required.", nameof(action));
+                }
 
-            case BattleActionKind.Magic:
-                return ResolveTargetedNoOp(state, actor, action, wasMiss: false);
+                BattleCombatantState target = state.Combatants.FirstOrDefault(c => c.Id == targetId)
+                    ?? throw new InvalidOperationException($"Target '{targetId}' not found.");
 
-            case BattleActionKind.Item:
-                return ResolveTargetedNoOp(state, actor, action, wasMiss: false);
-
-            case BattleActionKind.Skill:
-                return ResolveTargetedNoOp(state, actor, action, wasMiss: false);
-
-            case BattleActionKind.Defend:
-                return new BattleActionResult(
-                    actorId: actor.Id,
-                    targetId: null,
-                    actionKind: BattleActionKind.Defend,
-                    damageDealt: 0,
-                    targetDefeated: false,
-                    wasMiss: false,
-                    wasEscapeSuccessful: false);
-
-            case BattleActionKind.Escape:
-                return new BattleActionResult(
-                    actorId: actor.Id,
-                    targetId: null,
-                    actionKind: BattleActionKind.Escape,
-                    damageDealt: 0,
-                    targetDefeated: false,
-                    wasMiss: false,
-                    wasEscapeSuccessful: true);
-
-            case BattleActionKind.Wait:
-                return new BattleActionResult(
-                    actorId: actor.Id,
-                    targetId: null,
-                    actionKind: BattleActionKind.Wait,
-                    damageDealt: 0,
-                    targetDefeated: false,
-                    wasMiss: false,
-                    wasEscapeSuccessful: false);
-
-            default:
-                throw new NotSupportedException($"Action '{action.ActionKind}' is not supported.");
-        }
-    }
-
-    private static BattleActionResult ResolveTargetedNoOp(
-        BattleState state,
-        BattleCombatantState actor,
-        BattleActionChoice action,
-        bool wasMiss)
-    {
-        if (string.IsNullOrWhiteSpace(action.TargetId))
-        {
-            return new BattleActionResult(
-                actorId: actor.Id,
-                targetId: null,
-                actionKind: action.ActionKind,
-                damageDealt: 0,
-                targetDefeated: false,
-                wasMiss: wasMiss,
-                wasEscapeSuccessful: false);
+                if (target.IsDefeated)
+                {
+                    throw new InvalidOperationException("Target is defeated.");
+                }
+            }
         }
 
-        BattleCombatantState target = state.Combatants.FirstOrDefault(c => c.Id == action.TargetId)
-            ?? throw new InvalidOperationException($"Target '{action.TargetId}' not found.");
-
-        if (!target.IsAlive)
-        {
-            throw new InvalidOperationException("Target is not alive.");
-        }
-
-        return new BattleActionResult(
-            actorId: actor.Id,
-            targetId: target.Id,
-            actionKind: action.ActionKind,
-            damageDealt: 0,
-            targetDefeated: false,
-            wasMiss: wasMiss,
-            wasEscapeSuccessful: false);
+        return new BattleResolution(Array.Empty<BattleOperation>());
     }
 }

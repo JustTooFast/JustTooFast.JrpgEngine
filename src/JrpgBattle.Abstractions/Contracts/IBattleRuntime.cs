@@ -9,7 +9,7 @@ public interface IBattleRuntime
 {
     BattleRuntimeView GetView();
 
-    BattleAdvanceResult Advance();
+    void Advance();
 
-    BattleAdvanceResult SubmitPlayerAction(BattleActionChoice action);
+    void SubmitPlayerChoice(BattleActionChoice choice);
 }

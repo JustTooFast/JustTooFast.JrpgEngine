@@ -7,5 +7,5 @@ namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
 
 public interface IBattleActionResolver
 {
-    BattleActionResult Resolve(BattleState state, BattleActionChoice action);
+    BattleResolution Resolve(BattleState state, string actorId, BattleActionChoice action);
 }

@@ -15,8 +15,6 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
 
     private List<string>? _orderedActorIds;
     private int _nextIndex;
-    private string? _readyActorId;
-    private int _readyActorIndex;
 
     public RoundRobinBattleFlow(BattleTeam startingTeam)
     {
@@ -27,10 +25,9 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
 
         _startingTeam = startingTeam;
         _nextIndex = 0;
-        _readyActorIndex = -1;
     }
 
-    public BattleFlowResult Advance(BattleState state)
+    public BattleFlowStep Advance(BattleState state)
     {
         if (state is null)
         {
@@ -39,18 +36,11 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
 
         EnsureInitialized(state);
 
-        if (!string.IsNullOrWhiteSpace(_readyActorId))
-        {
-            return new BattleFlowResult(
-                HasChanged: false,
-                ReadyActorId: _readyActorId);
-        }
-
         if (_orderedActorIds!.Count == 0)
         {
-            return new BattleFlowResult(
-                HasChanged: false,
-                ReadyActorId: null);
+            return new BattleFlowStep(
+                hasAdvanced: false,
+                readyActorId: null);
         }
 
         for (int i = 0; i < _orderedActorIds.Count; i++)
@@ -59,40 +49,19 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
             string candidateActorId = _orderedActorIds[candidateIndex];
 
             BattleCombatantState? combatant = state.Combatants.FirstOrDefault(c => c.Id == candidateActorId);
-            if (combatant is not null && combatant.IsAlive)
+            if (combatant is not null && !combatant.IsDefeated)
             {
-                _readyActorId = candidateActorId;
-                _readyActorIndex = candidateIndex;
+                _nextIndex = (candidateIndex + 1) % _orderedActorIds.Count;
 
-                return new BattleFlowResult(
-                    HasChanged: true,
-                    ReadyActorId: _readyActorId);
+                return new BattleFlowStep(
+                    hasAdvanced: true,
+                    readyActorId: candidateActorId);
             }
         }
 
-        return new BattleFlowResult(
-            HasChanged: false,
-            ReadyActorId: null);
-    }
-
-    public void ConsumeReadyActor(string actorId)
-    {
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
-
-        if (!string.Equals(_readyActorId, actorId, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Ready actor does not match the actor being consumed.");
-        }
-
-        _nextIndex = _orderedActorIds!.Count == 0
-            ? 0
-            : (_readyActorIndex + 1) % _orderedActorIds.Count;
-
-        _readyActorId = null;
-        _readyActorIndex = -1;
+        return new BattleFlowStep(
+            hasAdvanced: false,
+            readyActorId: null);
     }
 
     private void EnsureInitialized(BattleState state)

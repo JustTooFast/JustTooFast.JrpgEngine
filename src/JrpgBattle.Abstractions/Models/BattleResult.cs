@@ -7,9 +7,7 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
 public sealed record BattleResult
 {
-    public BattleResult(
-        BattleOutcome outcome,
-        BattleReward? reward)
+    public BattleResult(BattleOutcome outcome)
     {
         if (outcome == BattleOutcome.None)
         {
@@ -17,10 +15,7 @@ public sealed record BattleResult
         }
 
         Outcome = outcome;
-        Reward = reward;
     }
 
     public BattleOutcome Outcome { get; }
-
-    public BattleReward? Reward { get; }
 }

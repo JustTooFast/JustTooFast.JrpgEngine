@@ -5,6 +5,7 @@ using System;
 using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
+using JustTooFast.JrpgBattle.ConsoleHost;
 
 namespace JustTooFast.JrpgBattle.ConsoleHost;
 
@@ -15,7 +16,6 @@ public static class Program
         IBattleRuntimeFactory battleRuntimeFactory = new BattleRuntimeFactory(
             flowFactory: () => new TeamPhaseBattleFlow(BattleTeam.Party),
             enemyActionChooserFactory: () => new RandomEnemyActionChooser(Environment.TickCount),
-            enemyTargetChooserFactory: () => new LowestLifeEnemyTargetChooser(),
             actionResolverFactory: () =>
                 new EscapeChanceBattleActionDecorator(
                     new RandomDamageBattleActionDecorator(
@@ -25,9 +25,7 @@ public static class Program
                         missChance: 0.10,
                         seed: Environment.TickCount),
                     escapeSuccessChance: 0.75,
-                    seed: Environment.TickCount),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(experiencePoints: 10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
+                    seed: Environment.TickCount));
 
         IBattleRewardApplier battleRewardApplier = new ConsoleBattleRewardApplier();
 

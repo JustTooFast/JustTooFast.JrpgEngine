@@ -25,298 +25,192 @@ public sealed class ConsoleBattleHostApp
 
     public int Run()
     {
-        do
-        {
-            RunSingleBattle();
-        }
-        while (PromptBattleAgain());
-
-        return 0;
-    }
-
-    private void RunSingleBattle()
-    {
         BattleDefinition definition = V0BattleScenario.CreateBattleDefinition();
         IBattleRuntime runtime = _battleRuntimeFactory.Create(definition);
 
-        Console.Clear();
-        Console.WriteLine("Battle started.");
-        Console.WriteLine();
-
-        WriteBattleState(runtime.GetView().State);
-
         while (true)
         {
-            BattleAdvanceResult advanceResult = runtime.Advance();
+            runtime.Advance();
 
-            if (advanceResult.ActionResult is not null)
+            BattleRuntimeView view = runtime.GetView();
+
+            RenderState(view);
+            RenderOccurrences(view.Occurrences);
+
+            if (view.Result is not null)
             {
-                WriteActionResult(runtime.GetView().State, advanceResult.ActionResult);
-            }
+                RenderResult(view.Result);
 
-            if (advanceResult.BattleResult is not null)
-            {
-                WriteBattleResult(advanceResult.BattleResult);
-
-                if (advanceResult.BattleResult.Reward is not null)
+                if (view.Result.Outcome == BattleOutcome.Victory)
                 {
-                    _battleRewardApplier.Apply(advanceResult.BattleResult.Reward);
+                    _battleRewardApplier.Apply(new BattleReward(10));
                 }
 
-                return;
+                return 0;
             }
 
-            if (advanceResult.IsPlayerInputNeeded)
+            if (view.InputRequest is not null)
             {
-                BattleActionChoice playerAction = PromptForPlayerAction(runtime.GetView());
-                BattleAdvanceResult playerResult = runtime.SubmitPlayerAction(playerAction);
+                BattleActionChoice choice = PromptForPlayerChoice(view, view.InputRequest);
+                runtime.SubmitPlayerChoice(choice);
+            }
+        }
+    }
 
-                if (playerResult.ActionResult is not null)
-                {
-                    WriteActionResult(runtime.GetView().State, playerResult.ActionResult);
-                }
+    private static void RenderState(BattleRuntimeView view)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== Battle State ===");
 
-                if (playerResult.BattleResult is not null)
-                {
-                    WriteBattleResult(playerResult.BattleResult);
+        foreach (BattleCombatantState combatant in view.State.Combatants)
+        {
+            Console.WriteLine(
+                $"{combatant.Name} [{combatant.Team}] HP {combatant.CurrentHp}/{combatant.MaxHp}" +
+                (combatant.IsDefeated ? " (Defeated)" : string.Empty));
+        }
 
-                    if (playerResult.BattleResult.Reward is not null)
+        Console.WriteLine();
+    }
+
+    private static void RenderOccurrences(IReadOnlyList<BattleOccurrence> occurrences)
+    {
+        foreach (BattleOccurrence occurrence in occurrences)
+        {
+            switch (occurrence)
+            {
+                case ActionStartedOccurrence started:
+                    Console.WriteLine($"{started.ActorId} started {started.ActionKind}.");
+                    break;
+
+                case ActionResolvedOccurrence resolved:
+                    Console.WriteLine($"{resolved.ActorId} resolved {resolved.ActionKind}.");
+                    break;
+
+                case HpChangedOccurrence hpChanged:
+                    if (hpChanged.Delta < 0)
                     {
-                        _battleRewardApplier.Apply(playerResult.BattleResult.Reward);
+                        Console.WriteLine($"{hpChanged.ActorId} took {-hpChanged.Delta} damage.");
                     }
+                    else if (hpChanged.Delta > 0)
+                    {
+                        Console.WriteLine($"{hpChanged.ActorId} recovered {hpChanged.Delta} HP.");
+                    }
+                    break;
 
-                    return;
-                }
+                case ActorDefeatedOccurrence defeated:
+                    Console.WriteLine($"{defeated.ActorId} was defeated.");
+                    break;
+
+                case EscapeSucceededOccurrence escaped:
+                    Console.WriteLine($"{escaped.ActorId} escaped successfully.");
+                    break;
+
+                case EscapeFailedOccurrence escapeFailed:
+                    Console.WriteLine($"{escapeFailed.ActorId} failed to escape.");
+                    break;
+
+                case DefendAppliedOccurrence defendApplied:
+                    Console.WriteLine($"{defendApplied.ActorId} is defending.");
+                    break;
+
+                case DefendRemovedOccurrence defendRemoved:
+                    Console.WriteLine($"{defendRemoved.ActorId} stopped defending.");
+                    break;
+
+                default:
+                    Console.WriteLine($"Unhandled occurrence: {occurrence.GetType().Name}");
+                    break;
             }
         }
     }
 
-    private static BattleActionChoice PromptForPlayerAction(BattleRuntimeView runtimeView)
+    private static void RenderResult(BattleResult result)
     {
-        if (runtimeView is null)
-        {
-            throw new ArgumentNullException(nameof(runtimeView));
-        }
-
-        BattleState state = runtimeView.State;
-
-        if (string.IsNullOrWhiteSpace(runtimeView.PendingPlayerActorId))
-        {
-            throw new InvalidOperationException("No pending player actor is available.");
-        }
-
-        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == runtimeView.PendingPlayerActorId)
-            ?? throw new InvalidOperationException($"Actor '{runtimeView.PendingPlayerActorId}' not found.");
-
-        Console.WriteLine($"It is {actor.Name}'s turn.");
         Console.WriteLine();
-
-        BattleActionKind[] actionKinds = Enum.GetValues<BattleActionKind>();
-
-        for (int i = 0; i < actionKinds.Length; i++)
-        {
-            Console.WriteLine($"{i + 1}. {actionKinds[i]}");
-        }
-
-        Console.WriteLine();
-
-        int actionIndex = PromptForNumber("Choose an action: ", 1, actionKinds.Length);
-        BattleActionKind actionKind = actionKinds[actionIndex - 1];
-
-        string? targetId = null;
-
-        if (ActionRequiresTarget(actionKind))
-        {
-            IReadOnlyList<BattleCombatantState> validTargets = GetValidTargetsForAction(state, actor, actionKind);
-
-            Console.WriteLine();
-            Console.WriteLine("Choose a target:");
-
-            for (int i = 0; i < validTargets.Count; i++)
-            {
-                BattleCombatantState target = validTargets[i];
-                Console.WriteLine($"{i + 1}. {target.Name} ({target.CurrentHp}/{target.MaxHp} HP)");
-            }
-
-            Console.WriteLine();
-
-            int targetIndex = PromptForNumber("Choose a target: ", 1, validTargets.Count);
-            targetId = validTargets[targetIndex - 1].Id;
-        }
-
-        Console.WriteLine();
-
-        return new BattleActionChoice(
-            actorId: actor.Id,
-            actionKind: actionKind,
-            targetId: targetId);
+        Console.WriteLine($"Battle ended: {result.Outcome}");
     }
 
-    private static bool PromptBattleAgain()
+    private static BattleActionChoice PromptForPlayerChoice(
+        BattleRuntimeView view,
+        BattleInputRequest inputRequest)
     {
+        BattleCombatantState actor = view.State.Combatants.First(c => c.Id == inputRequest.ActorId);
+
+        Console.WriteLine();
+        Console.WriteLine($"Choose action for {actor.Name}:");
+        Console.WriteLine("1. Attack");
+        Console.WriteLine("2. Defend");
+        Console.WriteLine("3. Escape");
+
         while (true)
         {
-            Console.WriteLine();
-            Console.Write("Battle again? (y/n): ");
+            Console.Write("> ");
+            string? input = Console.ReadLine();
 
-            string? input = Console.ReadLine()?.Trim();
-
-            if (string.Equals(input, "y", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(input, "yes", StringComparison.OrdinalIgnoreCase))
+            switch (input)
             {
-                Console.WriteLine();
-                return true;
+                case "1":
+                {
+                    string? targetId = PromptForAttackTarget(view, actor.Team);
+                    return new BattleActionChoice(
+                        actionKind: BattleActionKind.Attack,
+                        actionId: null,
+                        targetIds: targetId is null ? null : new[] { targetId });
+                }
+
+                case "2":
+                    return new BattleActionChoice(
+                        actionKind: BattleActionKind.Defend,
+                        actionId: null,
+                        targetIds: null);
+
+                case "3":
+                    return new BattleActionChoice(
+                        actionKind: BattleActionKind.Escape,
+                        actionId: null,
+                        targetIds: null);
             }
 
-            if (string.Equals(input, "n", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(input, "no", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            Console.WriteLine("Please enter y or n.");
+            Console.WriteLine("Invalid choice.");
         }
     }
 
-    private static bool ActionRequiresTarget(BattleActionKind actionKind)
+    private static string? PromptForAttackTarget(BattleRuntimeView view, BattleTeam actorTeam)
     {
-        return actionKind == BattleActionKind.Attack;
-    }
-
-    private static IReadOnlyList<BattleCombatantState> GetValidTargetsForAction(
-        BattleState state,
-        BattleCombatantState actor,
-        BattleActionKind actionKind)
-    {
-        if (actionKind != BattleActionKind.Attack)
-        {
-            return Array.Empty<BattleCombatantState>();
-        }
-
-        BattleTeam targetTeam = actor.Team == BattleTeam.Party
+        BattleTeam targetTeam = actorTeam == BattleTeam.Party
             ? BattleTeam.Enemy
             : BattleTeam.Party;
 
-        return state.Combatants
-            .Where(c => c.Team == targetTeam && c.IsAlive)
+        List<BattleCombatantState> targets = view.State.Combatants
+            .Where(c => c.Team == targetTeam && !c.IsDefeated)
             .ToList();
-    }
 
-    private static int PromptForNumber(string prompt, int minValue, int maxValue)
-    {
+        if (targets.Count == 0)
+        {
+            return null;
+        }
+
+        Console.WriteLine("Choose target:");
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            BattleCombatantState target = targets[i];
+            Console.WriteLine($"{i + 1}. {target.Name} ({target.CurrentHp}/{target.MaxHp})");
+        }
+
         while (true)
         {
-            Console.Write(prompt);
-
+            Console.Write("> ");
             string? input = Console.ReadLine();
 
-            if (int.TryParse(input, out int value) && value >= minValue && value <= maxValue)
+            if (int.TryParse(input, out int index) &&
+                index >= 1 &&
+                index <= targets.Count)
             {
-                return value;
+                return targets[index - 1].Id;
             }
 
-            Console.WriteLine($"Please enter a number from {minValue} to {maxValue}.");
-        }
-    }
-
-    private static void WriteBattleState(BattleState state)
-    {
-        Console.WriteLine("Party:");
-        int partyIndex = 1;
-        foreach (BattleCombatantState combatant in state.Combatants.Where(c => c.Team == BattleTeam.Party))
-        {
-            Console.WriteLine($"{partyIndex}. {combatant.Name}: {combatant.CurrentHp}/{combatant.MaxHp} HP");
-            partyIndex++;
-        }
-
-        Console.WriteLine();
-
-        Console.WriteLine("Enemies:");
-        int enemyIndex = 1;
-        foreach (BattleCombatantState combatant in state.Combatants.Where(c => c.Team == BattleTeam.Enemy))
-        {
-            Console.WriteLine($"{enemyIndex}. {combatant.Name}: {combatant.CurrentHp}/{combatant.MaxHp} HP");
-            enemyIndex++;
-        }
-
-        Console.WriteLine();
-    }
-
-    private static void WriteActionResult(BattleState state, BattleActionResult actionResult)
-    {
-        BattleCombatantState actor = state.Combatants.First(c => c.Id == actionResult.ActorId);
-
-        switch (actionResult.ActionKind)
-        {
-            case BattleActionKind.Attack:
-                {
-                    BattleCombatantState target = state.Combatants.First(c => c.Id == actionResult.TargetId);
-
-                    if (actionResult.WasMiss)
-                    {
-                        Console.WriteLine($"{actor.Name} attacked {target.Name}, but missed.");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"{actor.Name} attacked {target.Name} for {actionResult.DamageDealt} damage.");
-                    }
-
-                    if (actionResult.TargetDefeated)
-                    {
-                        Console.WriteLine($"{target.Name} was defeated.");
-                    }
-
-                    break;
-                }
-
-            case BattleActionKind.Defend:
-                Console.WriteLine($"{actor.Name} defended.");
-                break;
-
-            case BattleActionKind.Escape:
-                if (actionResult.WasEscapeSuccessful)
-                {
-                    Console.WriteLine($"{actor.Name} escaped successfully.");
-                }
-                else
-                {
-                    Console.WriteLine($"{actor.Name} tried to escape, but failed.");
-                }
-
-                break;
-
-            case BattleActionKind.Wait:
-                Console.WriteLine($"{actor.Name} waited.");
-                break;
-
-            case BattleActionKind.Magic:
-                Console.WriteLine($"{actor.Name} used Magic.");
-                break;
-
-            case BattleActionKind.Item:
-                Console.WriteLine($"{actor.Name} used an Item.");
-                break;
-
-            case BattleActionKind.Skill:
-                Console.WriteLine($"{actor.Name} used a Skill.");
-                break;
-
-            default:
-                Console.WriteLine($"{actor.Name} acted.");
-                break;
-        }
-
-        Console.WriteLine();
-        WriteBattleState(state);
-    }
-
-    private static void WriteBattleResult(BattleResult result)
-    {
-        Console.WriteLine($"Battle ended: {result.Outcome}");
-
-        if (result.Reward is not null)
-        {
-            Console.WriteLine($"Reward: {result.Reward.ExperiencePoints} XP");
+            Console.WriteLine("Invalid target.");
         }
     }
 }

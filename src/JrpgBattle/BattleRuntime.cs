@@ -13,20 +13,14 @@ public sealed class BattleRuntime : IBattleRuntime
 {
     private readonly IBattleFlow _flow;
     private readonly IEnemyActionChooser _enemyActionChooser;
-    private readonly IEnemyTargetChooser _enemyTargetChooser;
     private readonly IBattleActionResolver _actionResolver;
-    private readonly IBattleRewardCalculator _rewardCalculator;
-    private readonly IPlayerChoiceBlockingPolicy _playerChoiceBlockingPolicy;
     private readonly BattleRuntimeState _runtimeState;
 
     public BattleRuntime(
         BattleDefinition definition,
         IBattleFlow flow,
         IEnemyActionChooser enemyActionChooser,
-        IEnemyTargetChooser enemyTargetChooser,
-        IBattleActionResolver actionResolver,
-        IBattleRewardCalculator rewardCalculator,
-        IPlayerChoiceBlockingPolicy playerChoiceBlockingPolicy)
+        IBattleActionResolver actionResolver)
     {
         if (definition is null)
         {
@@ -35,344 +29,218 @@ public sealed class BattleRuntime : IBattleRuntime
 
         _flow = flow ?? throw new ArgumentNullException(nameof(flow));
         _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
-        _enemyTargetChooser = enemyTargetChooser ?? throw new ArgumentNullException(nameof(enemyTargetChooser));
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
-        _rewardCalculator = rewardCalculator ?? throw new ArgumentNullException(nameof(rewardCalculator));
-        _playerChoiceBlockingPolicy = playerChoiceBlockingPolicy ?? throw new ArgumentNullException(nameof(playerChoiceBlockingPolicy));
 
-        _runtimeState = new BattleRuntimeState(CreateInitialBattleState(definition));
+        var combatants = definition.PartyCombatants
+            .Concat(definition.EnemyCombatants)
+            .Select(c => new BattleCombatantState(
+                id: c.Id,
+                name: c.Name,
+                team: c.Team,
+                currentHp: c.MaxHp,
+                maxHp: c.MaxHp))
+            .ToList();
+
+        _runtimeState = new BattleRuntimeState(new BattleState(combatants));
     }
 
     public BattleRuntimeView GetView()
     {
         return new BattleRuntimeView(
             _runtimeState.BattleState,
-            _runtimeState.PendingActorId);
+            _runtimeState.CurrentInputRequest,
+            _runtimeState.CurrentOccurrences,
+            _runtimeState.Result);
     }
 
-    public BattleAdvanceResult Advance()
+    public void Advance()
     {
-        if (_runtimeState.Phase == BattleRuntimePhase.Ended)
+        if (_runtimeState.Result is not null)
         {
-            return new BattleAdvanceResult(
-                hasChanged: false,
-                isPlayerInputNeeded: false,
-                actionResult: null,
-                battleResult: null);
+            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
+            return;
         }
 
-        if (_runtimeState.Phase == BattleRuntimePhase.WaitingForPlayerChoice)
+        if (_runtimeState.CurrentInputRequest is not null)
         {
-            return AdvanceWhilePlayerChoicePending();
-        }
-
-        BattleFlowResult flowResult = _flow.Advance(_runtimeState.BattleState);
-
-        if (string.IsNullOrWhiteSpace(flowResult.ReadyActorId))
-        {
-            return new BattleAdvanceResult(
-                hasChanged: flowResult.HasChanged,
-                isPlayerInputNeeded: false,
-                actionResult: null,
-                battleResult: null);
-        }
-
-        BattleCombatantState actor = _runtimeState.BattleState.Combatants.FirstOrDefault(c => c.Id == flowResult.ReadyActorId)
-            ?? throw new InvalidOperationException($"Actor '{flowResult.ReadyActorId}' not found.");
-
-        if (!actor.IsAlive)
-        {
-            throw new InvalidOperationException("Ready actor is not alive.");
-        }
-
-        if (actor.Team == BattleTeam.Party)
-        {
-            _runtimeState.SetPendingActor(actor.Id);
-            _runtimeState.SetPhase(BattleRuntimePhase.WaitingForPlayerChoice);
-
-            return new BattleAdvanceResult(
-                hasChanged: true,
-                isPlayerInputNeeded: true,
-                actionResult: null,
-                battleResult: null);
-        }
-
-        _flow.ConsumeReadyActor(actor.Id);
-
-        BattleActionKind actionKind = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
-
-        string? targetId = null;
-        if (ActionCanHaveTarget(actionKind))
-        {
-            targetId = _enemyTargetChooser.ChooseTargetId(_runtimeState.BattleState, actor.Id);
-        }
-
-        BattleActionChoice action = new(
-            actorId: actor.Id,
-            actionKind: actionKind,
-            targetId: targetId);
-
-        BattleActionResult actionResult = _actionResolver.Resolve(_runtimeState.BattleState, action);
-
-        return ApplyResolvedAction(actionResult);
-    }
-
-    public BattleAdvanceResult SubmitPlayerAction(BattleActionChoice action)
-    {
-        if (action is null)
-        {
-            throw new ArgumentNullException(nameof(action));
-        }
-
-        if (_runtimeState.Phase == BattleRuntimePhase.Ended)
-        {
-            throw new InvalidOperationException("Battle has already ended.");
-        }
-
-        if (_runtimeState.Phase != BattleRuntimePhase.WaitingForPlayerChoice)
-        {
-            throw new InvalidOperationException("Battle is not waiting for a player choice.");
-        }
-
-        if (string.IsNullOrWhiteSpace(_runtimeState.PendingActorId))
-        {
-            throw new InvalidOperationException("No player actor is pending.");
-        }
-
-        if (!string.Equals(action.ActorId, _runtimeState.PendingActorId, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Submitted action actor does not match the pending player actor.");
-        }
-
-        BattleCombatantState actor = _runtimeState.BattleState.Combatants.FirstOrDefault(c => c.Id == action.ActorId)
-            ?? throw new InvalidOperationException($"Actor '{action.ActorId}' not found.");
-
-        if (actor.Team != BattleTeam.Party)
-        {
-            throw new InvalidOperationException("Submitted player action must belong to the party.");
-        }
-
-        _flow.ConsumeReadyActor(actor.Id);
-
-        BattleActionResult actionResult = _actionResolver.Resolve(_runtimeState.BattleState, action);
-
-        return ApplyResolvedAction(actionResult);
-    }
-
-    private BattleAdvanceResult AdvanceWhilePlayerChoicePending()
-    {
-        BattleRuntimeView runtimeView = GetView();
-        bool shouldBlock = _playerChoiceBlockingPolicy.ShouldBlockAdvance(runtimeView);
-
-        if (shouldBlock)
-        {
-            return new BattleAdvanceResult(
-                hasChanged: false,
-                isPlayerInputNeeded: true,
-                actionResult: null,
-                battleResult: null);
-        }
-
-        BattleFlowResult flowResult = _flow.Advance(_runtimeState.BattleState);
-
-        if (string.IsNullOrWhiteSpace(flowResult.ReadyActorId))
-        {
-            return new BattleAdvanceResult(
-                hasChanged: flowResult.HasChanged,
-                isPlayerInputNeeded: true,
-                actionResult: null,
-                battleResult: null);
-        }
-
-        BattleCombatantState actor = _runtimeState.BattleState.Combatants.FirstOrDefault(c => c.Id == flowResult.ReadyActorId)
-            ?? throw new InvalidOperationException($"Actor '{flowResult.ReadyActorId}' not found.");
-
-        if (!actor.IsAlive)
-        {
-            throw new InvalidOperationException("Ready actor is not alive.");
-        }
-
-        if (actor.Team == BattleTeam.Party)
-        {
-            return new BattleAdvanceResult(
-                hasChanged: flowResult.HasChanged,
-                isPlayerInputNeeded: true,
-                actionResult: null,
-                battleResult: null);
-        }
-
-        _flow.ConsumeReadyActor(actor.Id);
-
-        BattleActionKind actionKind = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
-
-        string? targetId = null;
-        if (ActionCanHaveTarget(actionKind))
-        {
-            targetId = _enemyTargetChooser.ChooseTargetId(_runtimeState.BattleState, actor.Id);
-        }
-
-        BattleActionChoice action = new(
-            actorId: actor.Id,
-            actionKind: actionKind,
-            targetId: targetId);
-
-        BattleActionResult actionResult = _actionResolver.Resolve(_runtimeState.BattleState, action);
-
-        return ApplyResolvedAction(actionResult, playerInputStillNeeded: true);
-    }
-
-    private BattleAdvanceResult ApplyResolvedAction(
-        BattleActionResult actionResult,
-        bool playerInputStillNeeded = false)
-    {
-        if (actionResult.ActionKind == BattleActionKind.Escape && actionResult.WasEscapeSuccessful)
-        {
-            BattleState escapedBattleState = new(
-                combatants: _runtimeState.BattleState.Combatants,
-                isEnded: true,
-                outcome: BattleOutcome.Escaped);
-
-            _runtimeState.SetBattleState(escapedBattleState);
-            _runtimeState.SetPendingActor(null);
-            _runtimeState.SetPhase(BattleRuntimePhase.Ended);
-
-            return new BattleAdvanceResult(
-                hasChanged: true,
-                isPlayerInputNeeded: false,
-                actionResult: actionResult,
-                battleResult: new BattleResult(BattleOutcome.Escaped, reward: null));
-        }
-
-        BattleState updatedBattleState = ApplyActionResult(_runtimeState.BattleState, actionResult);
-        _runtimeState.SetBattleState(updatedBattleState);
-
-        BattleResult? battleResult = TryBuildFinalResult(updatedBattleState);
-
-        if (battleResult is not null)
-        {
-            _runtimeState.SetPendingActor(null);
-            _runtimeState.SetPhase(BattleRuntimePhase.Ended);
-
-            return new BattleAdvanceResult(
-                hasChanged: true,
-                isPlayerInputNeeded: false,
-                actionResult: actionResult,
-                battleResult: battleResult);
-        }
-
-        if (playerInputStillNeeded && !string.IsNullOrWhiteSpace(_runtimeState.PendingActorId))
-        {
-            _runtimeState.SetPhase(BattleRuntimePhase.WaitingForPlayerChoice);
-
-            return new BattleAdvanceResult(
-                hasChanged: true,
-                isPlayerInputNeeded: true,
-                actionResult: actionResult,
-                battleResult: null);
-        }
-
-        _runtimeState.SetPendingActor(null);
-        _runtimeState.SetPhase(BattleRuntimePhase.Advancing);
-
-        return new BattleAdvanceResult(
-            hasChanged: true,
-            isPlayerInputNeeded: false,
-            actionResult: actionResult,
-            battleResult: null);
-    }
-
-    private BattleResult? TryBuildFinalResult(BattleState state)
-    {
-        bool partyAlive = state.Combatants.Any(c => c.Team == BattleTeam.Party && c.IsAlive);
-        bool enemiesAlive = state.Combatants.Any(c => c.Team == BattleTeam.Enemy && c.IsAlive);
-
-        if (partyAlive && enemiesAlive)
-        {
-            return null;
-        }
-
-        BattleOutcome outcome = partyAlive
-            ? BattleOutcome.Victory
-            : BattleOutcome.Defeat;
-
-        BattleState endedState = new(
-            combatants: state.Combatants,
-            isEnded: true,
-            outcome: outcome);
-
-        _runtimeState.SetBattleState(endedState);
-
-        BattleReward? reward = null;
-        if (outcome == BattleOutcome.Victory)
-        {
-            reward = _rewardCalculator.Calculate(endedState);
-        }
-
-        return new BattleResult(outcome, reward);
-    }
-
-    private static BattleState ApplyActionResult(BattleState state, BattleActionResult actionResult)
-    {
-        List<BattleCombatantState> updatedCombatants = state.Combatants
-            .Select(c =>
+            if (_runtimeState.PendingPlayerChoice is null)
             {
-                if (!string.Equals(c.Id, actionResult.TargetId, StringComparison.Ordinal))
-                {
-                    return c;
-                }
+                _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
+                return;
+            }
 
-                int newHp = Math.Max(0, c.CurrentHp - actionResult.DamageDealt);
+            string actorId = _runtimeState.CurrentInputRequest.ActorId;
+            BattleActionChoice choice = _runtimeState.PendingPlayerChoice;
 
-                return new BattleCombatantState(
-                    id: c.Id,
-                    name: c.Name,
-                    team: c.Team,
-                    currentHp: newHp,
-                    maxHp: c.MaxHp);
-            })
+            _runtimeState.SetInputRequest(null);
+            _runtimeState.SetPendingPlayerChoice(null);
+
+            ExecuteAction(actorId, choice);
+            return;
+        }
+
+        BattleFlowStep flowStep = _flow.Advance(_runtimeState.BattleState);
+        if (!flowStep.HasAdvanced || string.IsNullOrWhiteSpace(flowStep.ReadyActorId))
+        {
+            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
+            return;
+        }
+
+        BattleCombatantState actor = FindCombatant(flowStep.ReadyActorId);
+        if (actor.IsDefeated)
+        {
+            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
+            return;
+        }
+
+        if (actor.Team == BattleTeam.Party)
+        {
+            _runtimeState.SetInputRequest(new BattleInputRequest(actor.Id));
+            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
+            return;
+        }
+
+        BattleActionChoice enemyChoice = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
+        ExecuteAction(actor.Id, enemyChoice);
+    }
+
+    public void SubmitPlayerChoice(BattleActionChoice choice)
+    {
+        if (choice is null)
+        {
+            throw new ArgumentNullException(nameof(choice));
+        }
+
+        if (_runtimeState.Result is not null)
+        {
+            throw new InvalidOperationException("Cannot submit a player choice after the battle has completed.");
+        }
+
+        if (_runtimeState.CurrentInputRequest is null)
+        {
+            throw new InvalidOperationException("The runtime is not currently requesting player input.");
+        }
+
+        if (_runtimeState.PendingPlayerChoice is not null)
+        {
+            throw new InvalidOperationException("A player choice has already been submitted and is pending execution.");
+        }
+
+        _runtimeState.SetPendingPlayerChoice(choice);
+    }
+
+    private void ExecuteAction(string actorId, BattleActionChoice choice)
+    {
+        var occurrences = new List<BattleOccurrence>
+        {
+            new ActionStartedOccurrence(actorId, choice.ActionKind, choice.ActionId)
+        };
+
+        if (choice.ActionKind == BattleActionKind.Defend)
+        {
+            occurrences.Add(new DefendAppliedOccurrence(actorId));
+        }
+
+        BattleResolution resolution = _actionResolver.Resolve(_runtimeState.BattleState, actorId, choice);
+        ApplyResolution(actorId, choice, resolution, occurrences);
+
+        occurrences.Add(new ActionResolvedOccurrence(actorId, choice.ActionKind, choice.ActionId));
+
+        FinalizeBattleResultIfNeeded();
+        _runtimeState.SetOccurrences(occurrences);
+    }
+
+    private void ApplyResolution(
+        string actorId,
+        BattleActionChoice choice,
+        BattleResolution resolution,
+        List<BattleOccurrence> occurrences)
+    {
+        foreach (BattleOperation operation in resolution.Operations)
+        {
+            switch (operation)
+            {
+                case DamageOperation damage:
+                    ApplyDamage(damage, occurrences);
+                    break;
+
+                case EscapeSucceededOperation:
+                    occurrences.Add(new EscapeSucceededOccurrence(actorId));
+                    _runtimeState.SetResult(new BattleResult(BattleOutcome.Escaped));
+                    break;
+
+                case EscapeFailedOperation:
+                    occurrences.Add(new EscapeFailedOccurrence(actorId));
+                    break;
+
+                default:
+                    throw new NotSupportedException(
+                        $"Battle operation '{operation.GetType().Name}' is not supported by the runtime.");
+            }
+        }
+    }
+
+    private void ApplyDamage(DamageOperation damage, List<BattleOccurrence> occurrences)
+    {
+        BattleCombatantState target = FindCombatant(damage.TargetId);
+
+        int previousHp = target.CurrentHp;
+        int currentHp = Math.Max(0, previousHp - damage.Amount);
+
+        if (currentHp == previousHp)
+        {
+            return;
+        }
+
+        ReplaceCombatant(new BattleCombatantState(
+            id: target.Id,
+            name: target.Name,
+            team: target.Team,
+            currentHp: currentHp,
+            maxHp: target.MaxHp));
+
+        occurrences.Add(new HpChangedOccurrence(target.Id, previousHp, currentHp));
+
+        if (previousHp > 0 && currentHp == 0)
+        {
+            occurrences.Add(new ActorDefeatedOccurrence(target.Id));
+        }
+    }
+
+    private void ReplaceCombatant(BattleCombatantState updatedCombatant)
+    {
+        List<BattleCombatantState> updatedCombatants = _runtimeState.BattleState.Combatants
+            .Select(c => c.Id == updatedCombatant.Id ? updatedCombatant : c)
             .ToList();
 
-        return new BattleState(
-            combatants: updatedCombatants,
-            isEnded: false,
-            outcome: BattleOutcome.None);
+        _runtimeState.SetBattleState(new BattleState(updatedCombatants));
     }
 
-    private static BattleState CreateInitialBattleState(BattleDefinition definition)
+    private BattleCombatantState FindCombatant(string actorId)
     {
-        List<BattleCombatantState> combatants = new();
-
-        foreach (BattleCombatantDefinition combatant in definition.PartyCombatants)
-        {
-            combatants.Add(new BattleCombatantState(
-                id: combatant.Id,
-                name: combatant.Name,
-                team: combatant.Team,
-                currentHp: combatant.MaxHp,
-                maxHp: combatant.MaxHp));
-        }
-
-        foreach (BattleCombatantDefinition combatant in definition.EnemyCombatants)
-        {
-            combatants.Add(new BattleCombatantState(
-                id: combatant.Id,
-                name: combatant.Name,
-                team: combatant.Team,
-                currentHp: combatant.MaxHp,
-                maxHp: combatant.MaxHp));
-        }
-
-        return new BattleState(
-            combatants: combatants,
-            isEnded: false,
-            outcome: BattleOutcome.None);
+        return _runtimeState.BattleState.Combatants.FirstOrDefault(c => c.Id == actorId)
+            ?? throw new InvalidOperationException($"Combatant '{actorId}' was not found.");
     }
 
-    private static bool ActionCanHaveTarget(BattleActionKind actionKind)
+    private void FinalizeBattleResultIfNeeded()
     {
-        return actionKind is BattleActionKind.Attack
-            or BattleActionKind.Magic
-            or BattleActionKind.Item
-            or BattleActionKind.Skill;
+        if (_runtimeState.Result is not null)
+        {
+            return;
+        }
+
+        bool anyPartyRemaining = _runtimeState.BattleState.Combatants.Any(c => c.Team == BattleTeam.Party && !c.IsDefeated);
+        bool anyEnemyRemaining = _runtimeState.BattleState.Combatants.Any(c => c.Team == BattleTeam.Enemy && !c.IsDefeated);
+
+        if (!anyPartyRemaining)
+        {
+            _runtimeState.SetResult(new BattleResult(BattleOutcome.Defeat));
+            return;
+        }
+
+        if (!anyEnemyRemaining)
+        {
+            _runtimeState.SetResult(new BattleResult(BattleOutcome.Victory));
+        }
     }
 }

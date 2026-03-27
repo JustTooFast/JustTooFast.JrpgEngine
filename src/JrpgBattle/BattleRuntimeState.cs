@@ -2,37 +2,53 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using JustTooFast.JrpgBattle.Abstractions.Models;
+using System.Collections.Generic;
 
-namespace JustTooFast.JrpgBattle;
+namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
 internal sealed class BattleRuntimeState
 {
     public BattleRuntimeState(BattleState battleState)
     {
         BattleState = battleState ?? throw new ArgumentNullException(nameof(battleState));
-        Phase = BattleRuntimePhase.Advancing;
-        PendingActorId = null;
+        CurrentInputRequest = null;
+        PendingPlayerChoice = null;
+        CurrentOccurrences = Array.Empty<BattleOccurrence>();
+        Result = null;
     }
 
     public BattleState BattleState { get; private set; }
 
-    public BattleRuntimePhase Phase { get; private set; }
+    public BattleInputRequest? CurrentInputRequest { get; private set; }
 
-    public string? PendingActorId { get; private set; }
+    public BattleActionChoice? PendingPlayerChoice { get; private set; }
+
+    public IReadOnlyList<BattleOccurrence> CurrentOccurrences { get; private set; }
+
+    public BattleResult? Result { get; private set; }
 
     public void SetBattleState(BattleState state)
     {
         BattleState = state ?? throw new ArgumentNullException(nameof(state));
     }
 
-    public void SetPhase(BattleRuntimePhase phase)
+    public void SetInputRequest(BattleInputRequest? inputRequest)
     {
-        Phase = phase;
+        CurrentInputRequest = inputRequest;
     }
 
-    public void SetPendingActor(string? actorId)
+    public void SetPendingPlayerChoice(BattleActionChoice? choice)
     {
-        PendingActorId = actorId;
+        PendingPlayerChoice = choice;
+    }
+
+    public void SetOccurrences(IReadOnlyList<BattleOccurrence> occurrences)
+    {
+        CurrentOccurrences = occurrences ?? throw new ArgumentNullException(nameof(occurrences));
+    }
+
+    public void SetResult(BattleResult? result)
+    {
+        Result = result;
     }
 }

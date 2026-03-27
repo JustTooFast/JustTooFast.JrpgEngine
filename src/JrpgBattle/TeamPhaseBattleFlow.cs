@@ -19,9 +19,6 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
     private BattleTeam _currentTeam;
     private int _nextIndexInCurrentTeam;
 
-    private string? _readyActorId;
-    private int _readyActorIndexInCurrentTeam;
-
     public TeamPhaseBattleFlow(BattleTeam startingTeam)
     {
         if (startingTeam is not BattleTeam.Party and not BattleTeam.Enemy)
@@ -32,10 +29,9 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
         _startingTeam = startingTeam;
         _currentTeam = startingTeam;
         _nextIndexInCurrentTeam = 0;
-        _readyActorIndexInCurrentTeam = -1;
     }
 
-    public BattleFlowResult Advance(BattleState state)
+    public BattleFlowStep Advance(BattleState state)
     {
         if (state is null)
         {
@@ -44,21 +40,13 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
 
         EnsureInitialized(state);
 
-        if (!string.IsNullOrWhiteSpace(_readyActorId))
-        {
-            return new BattleFlowResult(
-                HasChanged: false,
-                ReadyActorId: _readyActorId);
-        }
-
         if (TryFindReadyActor(state, _currentTeam, _nextIndexInCurrentTeam, out string? actorId, out int actorIndex))
         {
-            _readyActorId = actorId;
-            _readyActorIndexInCurrentTeam = actorIndex;
+            _nextIndexInCurrentTeam = actorIndex + 1;
 
-            return new BattleFlowResult(
-                HasChanged: true,
-                ReadyActorId: _readyActorId);
+            return new BattleFlowStep(
+                hasAdvanced: true,
+                readyActorId: actorId);
         }
 
         BattleTeam otherTeam = GetOpposingTeam(_currentTeam);
@@ -66,35 +54,16 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
         if (TryFindReadyActor(state, otherTeam, 0, out actorId, out actorIndex))
         {
             _currentTeam = otherTeam;
-            _nextIndexInCurrentTeam = 0;
-            _readyActorId = actorId;
-            _readyActorIndexInCurrentTeam = actorIndex;
+            _nextIndexInCurrentTeam = actorIndex + 1;
 
-            return new BattleFlowResult(
-                HasChanged: true,
-                ReadyActorId: _readyActorId);
+            return new BattleFlowStep(
+                hasAdvanced: true,
+                readyActorId: actorId);
         }
 
-        return new BattleFlowResult(
-            HasChanged: false,
-            ReadyActorId: null);
-    }
-
-    public void ConsumeReadyActor(string actorId)
-    {
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
-
-        if (!string.Equals(_readyActorId, actorId, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Ready actor does not match the actor being consumed.");
-        }
-
-        _nextIndexInCurrentTeam = _readyActorIndexInCurrentTeam + 1;
-        _readyActorId = null;
-        _readyActorIndexInCurrentTeam = -1;
+        return new BattleFlowStep(
+            hasAdvanced: false,
+            readyActorId: null);
     }
 
     private void EnsureInitialized(BattleState state)
@@ -131,7 +100,7 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
             string candidateActorId = actorIds[i];
 
             BattleCombatantState? combatant = state.Combatants.FirstOrDefault(c => c.Id == candidateActorId);
-            if (combatant is not null && combatant.IsAlive)
+            if (combatant is not null && !combatant.IsDefeated)
             {
                 actorId = candidateActorId;
                 actorIndex = i;

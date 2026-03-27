@@ -5,7 +5,7 @@ using System;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
-namespace JustTooFast.JrpgBattle;
+namespace JustTooFast.JrpgBattle.ConsoleHost;
 
 public sealed class FixedXpBattleRewardCalculator : IBattleRewardCalculator
 {
@@ -28,10 +28,12 @@ public sealed class FixedXpBattleRewardCalculator : IBattleRewardCalculator
             throw new ArgumentNullException(nameof(finalState));
         }
 
+        /*
         if (!finalState.IsEnded)
         {
             throw new InvalidOperationException("Cannot calculate rewards before the battle has ended.");
         }
+        */
 
         return new BattleReward(_experiencePoints);
     }

@@ -9,7 +9,7 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class AlwaysEscapeEnemyActionChooser : IEnemyActionChooser
 {
-    public BattleActionKind ChooseAction(BattleState state, string actorId)
+    public BattleActionChoice ChooseAction(BattleState state, string actorId)
     {
         if (state is null)
         {
@@ -21,6 +21,9 @@ public sealed class AlwaysEscapeEnemyActionChooser : IEnemyActionChooser
             throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
-        return BattleActionKind.Escape;
+        return new BattleActionChoice(
+            actionKind: BattleActionKind.Escape,
+            actionId: null,
+            targetIds: null);
     }
 }

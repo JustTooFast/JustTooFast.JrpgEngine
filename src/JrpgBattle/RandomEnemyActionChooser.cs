@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
+using System.Linq;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
@@ -16,7 +17,7 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
         _random = new Random(seed);
     }
 
-    public BattleActionKind ChooseAction(BattleState state, string actorId)
+    public BattleActionChoice ChooseAction(BattleState state, string actorId)
     {
         if (state is null)
         {
@@ -28,8 +29,40 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
             throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
-        return _random.Next(2) == 0
+        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
+            ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
+
+        if (actor.IsDefeated)
+        {
+            throw new InvalidOperationException("Actor is defeated.");
+        }
+
+        BattleActionKind actionKind = _random.Next(2) == 0
             ? BattleActionKind.Attack
             : BattleActionKind.Defend;
+
+        string[]? targetIds = null;
+
+        if (actionKind == BattleActionKind.Attack)
+        {
+            BattleTeam targetTeam = actor.Team == BattleTeam.Party
+                ? BattleTeam.Enemy
+                : BattleTeam.Party;
+
+            string? targetId = state.Combatants
+                .Where(c => c.Team == targetTeam && !c.IsDefeated)
+                .Select(c => c.Id)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(targetId))
+            {
+                targetIds = [targetId];
+            }
+        }
+
+        return new BattleActionChoice(
+            actionKind: actionKind,
+            actionId: null,
+            targetIds: targetIds);
     }
 }
