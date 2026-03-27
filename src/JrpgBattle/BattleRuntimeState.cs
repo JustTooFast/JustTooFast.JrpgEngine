@@ -3,8 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using JustTooFast.JrpgBattle.Abstractions.Models;
 
-namespace JustTooFast.JrpgBattle.Abstractions.Models;
+namespace JustTooFast.JrpgBattle;
 
 internal sealed class BattleRuntimeState
 {

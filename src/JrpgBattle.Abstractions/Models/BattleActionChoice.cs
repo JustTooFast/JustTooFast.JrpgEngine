@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
@@ -13,9 +15,16 @@ public sealed record BattleActionChoice
         string? actionId,
         IReadOnlyList<string>? targetIds)
     {
+        if (targetIds is not null && targetIds.Any(static id => string.IsNullOrWhiteSpace(id)))
+        {
+            throw new ArgumentException("Target ids cannot contain null or whitespace values.", nameof(targetIds));
+        }
+
         ActionKind = actionKind;
         ActionId = string.IsNullOrWhiteSpace(actionId) ? null : actionId;
-        TargetIds = targetIds;
+        TargetIds = targetIds is null
+            ? null
+            : new ReadOnlyCollection<string>(targetIds.ToArray());
     }
 
     public BattleActionKind ActionKind { get; }

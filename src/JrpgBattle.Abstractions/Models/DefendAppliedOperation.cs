@@ -5,9 +5,9 @@ using System;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
-public sealed record DefendAppliedOccurrence : BattleOccurrence
+public sealed record DefendAppliedOperation : BattleOperation
 {
-    public DefendAppliedOccurrence(string actorId)
+    public DefendAppliedOperation(string actorId)
     {
         if (string.IsNullOrWhiteSpace(actorId))
         {

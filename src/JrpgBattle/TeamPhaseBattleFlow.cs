@@ -44,6 +44,16 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
         {
             _nextIndexInCurrentTeam = actorIndex + 1;
 
+            IReadOnlyList<string> currentTeamIds = _currentTeam == BattleTeam.Party
+                ? _partyActorIds!
+                : _enemyActorIds!;
+
+            if (_nextIndexInCurrentTeam >= currentTeamIds.Count)
+            {
+                _currentTeam = GetOpposingTeam(_currentTeam);
+                _nextIndexInCurrentTeam = 0;
+            }
+
             return new BattleFlowStep(
                 hasAdvanced: true,
                 readyActorId: actorId);
@@ -54,7 +64,18 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
         if (TryFindReadyActor(state, otherTeam, 0, out actorId, out actorIndex))
         {
             _currentTeam = otherTeam;
+
+            IReadOnlyList<string> otherTeamIds = otherTeam == BattleTeam.Party
+                ? _partyActorIds!
+                : _enemyActorIds!;
+
             _nextIndexInCurrentTeam = actorIndex + 1;
+
+            if (_nextIndexInCurrentTeam >= otherTeamIds.Count)
+            {
+                _currentTeam = GetOpposingTeam(otherTeam);
+                _nextIndexInCurrentTeam = 0;
+            }
 
             return new BattleFlowStep(
                 hasAdvanced: true,

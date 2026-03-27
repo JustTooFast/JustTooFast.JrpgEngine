@@ -5,9 +5,9 @@ using System;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
-public sealed record DefendRemovedOccurrence : BattleOccurrence
+public sealed record DamageHadNoEffectOccurrence : BattleOccurrence
 {
-    public DefendRemovedOccurrence(string actorId)
+    public DamageHadNoEffectOccurrence(string actorId)
     {
         if (string.IsNullOrWhiteSpace(actorId))
         {

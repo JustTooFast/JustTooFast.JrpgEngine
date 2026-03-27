@@ -62,7 +62,7 @@ public sealed class ConsoleBattleHostApp
         Console.WriteLine();
         Console.WriteLine("=== Battle State ===");
 
-        foreach (BattleCombatantState combatant in view.State.Combatants)
+        foreach (BattleCombatantState combatant in view.BattleState.Combatants)
         {
             Console.WriteLine(
                 $"{combatant.Name} [{combatant.Team}] HP {combatant.CurrentHp}/{combatant.MaxHp}" +
@@ -86,6 +86,10 @@ public sealed class ConsoleBattleHostApp
                     Console.WriteLine($"{resolved.ActorId} resolved {resolved.ActionKind}.");
                     break;
 
+                case ActionHadNoEffectOccurrence noEffect:
+                    Console.WriteLine($"{noEffect.ActorId}'s action had no effect.");
+                    break;
+
                 case HpChangedOccurrence hpChanged:
                     if (hpChanged.Delta < 0)
                     {
@@ -95,6 +99,10 @@ public sealed class ConsoleBattleHostApp
                     {
                         Console.WriteLine($"{hpChanged.ActorId} recovered {hpChanged.Delta} HP.");
                     }
+                    break;
+
+                case DamageHadNoEffectOccurrence damageNoEffect:
+                    Console.WriteLine($"{damageNoEffect.ActorId} took no damage.");
                     break;
 
                 case ActorDefeatedOccurrence defeated:
@@ -111,10 +119,6 @@ public sealed class ConsoleBattleHostApp
 
                 case DefendAppliedOccurrence defendApplied:
                     Console.WriteLine($"{defendApplied.ActorId} is defending.");
-                    break;
-
-                case DefendRemovedOccurrence defendRemoved:
-                    Console.WriteLine($"{defendRemoved.ActorId} stopped defending.");
                     break;
 
                 default:
@@ -134,7 +138,7 @@ public sealed class ConsoleBattleHostApp
         BattleRuntimeView view,
         BattleInputRequest inputRequest)
     {
-        BattleCombatantState actor = view.State.Combatants.First(c => c.Id == inputRequest.ActorId);
+        BattleCombatantState actor = view.BattleState.Combatants.First(c => c.Id == inputRequest.ActorId);
 
         Console.WriteLine();
         Console.WriteLine($"Choose action for {actor.Name}:");
@@ -151,11 +155,11 @@ public sealed class ConsoleBattleHostApp
             {
                 case "1":
                 {
-                    string? targetId = PromptForAttackTarget(view, actor.Team);
+                    IReadOnlyList<string> targetIds = PromptForAttackTargets(view, actor.Team);
                     return new BattleActionChoice(
                         actionKind: BattleActionKind.Attack,
                         actionId: null,
-                        targetIds: targetId is null ? null : new[] { targetId });
+                        targetIds: targetIds);
                 }
 
                 case "2":
@@ -175,19 +179,19 @@ public sealed class ConsoleBattleHostApp
         }
     }
 
-    private static string? PromptForAttackTarget(BattleRuntimeView view, BattleTeam actorTeam)
+    private static IReadOnlyList<string> PromptForAttackTargets(BattleRuntimeView view, BattleTeam actorTeam)
     {
         BattleTeam targetTeam = actorTeam == BattleTeam.Party
             ? BattleTeam.Enemy
             : BattleTeam.Party;
 
-        List<BattleCombatantState> targets = view.State.Combatants
+        List<BattleCombatantState> targets = view.BattleState.Combatants
             .Where(c => c.Team == targetTeam && !c.IsDefeated)
             .ToList();
 
         if (targets.Count == 0)
         {
-            return null;
+            return Array.Empty<string>();
         }
 
         Console.WriteLine("Choose target:");
@@ -207,7 +211,7 @@ public sealed class ConsoleBattleHostApp
                 index >= 1 &&
                 index <= targets.Count)
             {
-                return targets[index - 1].Id;
+                return new[] { targets[index - 1].Id };
             }
 
             Console.WriteLine("Invalid target.");

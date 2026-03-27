@@ -23,6 +23,11 @@ public sealed record BattleCombatantDefinition
             throw new ArgumentException("Combatant name is required.", nameof(name));
         }
 
+        if (team is not BattleTeam.Party and not BattleTeam.Enemy)
+        {
+            throw new ArgumentOutOfRangeException(nameof(team), "Combatant team must be Party or Enemy.");
+        }
+
         if (maxHp <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(maxHp), "Max HP must be greater than zero.");

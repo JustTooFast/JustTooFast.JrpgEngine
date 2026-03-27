@@ -37,32 +37,31 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
             throw new InvalidOperationException("Actor is defeated.");
         }
 
-        BattleActionKind actionKind = _random.Next(2) == 0
-            ? BattleActionKind.Attack
-            : BattleActionKind.Defend;
+        BattleTeam targetTeam = actor.Team == BattleTeam.Party
+            ? BattleTeam.Enemy
+            : BattleTeam.Party;
 
-        string[]? targetIds = null;
+        string[] availableTargetIds = state.Combatants
+            .Where(c => c.Team == targetTeam && !c.IsDefeated)
+            .Select(c => c.Id)
+            .ToArray();
 
-        if (actionKind == BattleActionKind.Attack)
+        bool canAttack = availableTargetIds.Length > 0;
+        bool chooseAttack = canAttack && _random.Next(2) == 0;
+
+        if (chooseAttack)
         {
-            BattleTeam targetTeam = actor.Team == BattleTeam.Party
-                ? BattleTeam.Enemy
-                : BattleTeam.Party;
+            string targetId = availableTargetIds[_random.Next(availableTargetIds.Length)];
 
-            string? targetId = state.Combatants
-                .Where(c => c.Team == targetTeam && !c.IsDefeated)
-                .Select(c => c.Id)
-                .FirstOrDefault();
-
-            if (!string.IsNullOrWhiteSpace(targetId))
-            {
-                targetIds = [targetId];
-            }
+            return new BattleActionChoice(
+                actionKind: BattleActionKind.Attack,
+                actionId: null,
+                targetIds: new[] { targetId });
         }
 
         return new BattleActionChoice(
-            actionKind: actionKind,
+            actionKind: BattleActionKind.Defend,
             actionId: null,
-            targetIds: targetIds);
+            targetIds: null);
     }
 }

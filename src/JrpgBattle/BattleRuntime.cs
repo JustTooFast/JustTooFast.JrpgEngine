@@ -55,17 +55,19 @@ public sealed class BattleRuntime : IBattleRuntime
 
     public void Advance()
     {
+        // ALWAYS clear occurrences unless we produce new ones this frame
+        _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
+
         if (_runtimeState.Result is not null)
         {
-            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
             return;
         }
 
+        // ---- INPUT HANDLING ----
         if (_runtimeState.CurrentInputRequest is not null)
         {
             if (_runtimeState.PendingPlayerChoice is null)
             {
-                _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
                 return;
             }
 
@@ -79,27 +81,29 @@ public sealed class BattleRuntime : IBattleRuntime
             return;
         }
 
+        // ---- FLOW ADVANCE ----
         BattleFlowStep flowStep = _flow.Advance(_runtimeState.BattleState);
+
         if (!flowStep.HasAdvanced || string.IsNullOrWhiteSpace(flowStep.ReadyActorId))
         {
-            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
             return;
         }
 
         BattleCombatantState actor = FindCombatant(flowStep.ReadyActorId);
+
+        // dead actors never act
         if (actor.IsDefeated)
         {
-            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
             return;
         }
 
         if (actor.Team == BattleTeam.Party)
         {
             _runtimeState.SetInputRequest(new BattleInputRequest(actor.Id));
-            _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
             return;
         }
 
+        // enemy turn
         BattleActionChoice enemyChoice = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
         ExecuteAction(actor.Id, enemyChoice);
     }
@@ -131,52 +135,70 @@ public sealed class BattleRuntime : IBattleRuntime
 
     private void ExecuteAction(string actorId, BattleActionChoice choice)
     {
-        var occurrences = new List<BattleOccurrence>
-        {
-            new ActionStartedOccurrence(actorId, choice.ActionKind, choice.ActionId)
-        };
+        var occurrences = new List<BattleOccurrence>();
 
-        if (choice.ActionKind == BattleActionKind.Defend)
-        {
-            occurrences.Add(new DefendAppliedOccurrence(actorId));
-        }
+        // ---- ACTION START ----
+        occurrences.Add(new ActionStartedOccurrence(actorId, choice.ActionKind, choice.ActionId));
 
+        // ---- RESOLVE ----
         BattleResolution resolution = _actionResolver.Resolve(_runtimeState.BattleState, actorId, choice);
-        ApplyResolution(actorId, choice, resolution, occurrences);
 
+        // MUST always process resolution (even if empty)
+        ApplyResolution(actorId, resolution, occurrences);
+
+        // ---- ACTION END ----
         occurrences.Add(new ActionResolvedOccurrence(actorId, choice.ActionKind, choice.ActionId));
 
+        // ---- RESULT CHECK ----
         FinalizeBattleResultIfNeeded();
+
         _runtimeState.SetOccurrences(occurrences);
     }
 
     private void ApplyResolution(
         string actorId,
-        BattleActionChoice choice,
         BattleResolution resolution,
         List<BattleOccurrence> occurrences)
     {
         foreach (BattleOperation operation in resolution.Operations)
         {
-            switch (operation)
-            {
-                case DamageOperation damage:
-                    ApplyDamage(damage, occurrences);
-                    break;
+            ApplyOperation(actorId, operation, occurrences);
+        }
 
-                case EscapeSucceededOperation:
-                    occurrences.Add(new EscapeSucceededOccurrence(actorId));
-                    _runtimeState.SetResult(new BattleResult(BattleOutcome.Escaped));
-                    break;
+        // IMPORTANT: Explicit no-op handling
+        if (resolution.Operations.Count == 0)
+        {
+            occurrences.Add(new ActionHadNoEffectOccurrence(actorId));
+        }
+    }
 
-                case EscapeFailedOperation:
-                    occurrences.Add(new EscapeFailedOccurrence(actorId));
-                    break;
+    private void ApplyOperation(
+        string actorId,
+        BattleOperation operation,
+        List<BattleOccurrence> occurrences)
+    {
+        switch (operation)
+        {
+            case DamageOperation damage:
+                ApplyDamage(damage, occurrences);
+                break;
 
-                default:
-                    throw new NotSupportedException(
-                        $"Battle operation '{operation.GetType().Name}' is not supported by the runtime.");
-            }
+            case EscapeSucceededOperation:
+                occurrences.Add(new EscapeSucceededOccurrence(actorId));
+                _runtimeState.SetResult(new BattleResult(BattleOutcome.Escaped));
+                break;
+
+            case EscapeFailedOperation:
+                occurrences.Add(new EscapeFailedOccurrence(actorId));
+                break;
+
+            case DefendAppliedOperation defend:
+                ApplyDefend(defend, occurrences);
+                break;
+
+            default:
+                throw new NotSupportedException(
+                    $"Battle operation '{operation.GetType().Name}' is not supported by the runtime.");
         }
     }
 
@@ -187,8 +209,10 @@ public sealed class BattleRuntime : IBattleRuntime
         int previousHp = target.CurrentHp;
         int currentHp = Math.Max(0, previousHp - damage.Amount);
 
+        // IMPORTANT: zero-effect still produces occurrence
         if (currentHp == previousHp)
         {
+            occurrences.Add(new DamageHadNoEffectOccurrence(target.Id));
             return;
         }
 
@@ -205,6 +229,11 @@ public sealed class BattleRuntime : IBattleRuntime
         {
             occurrences.Add(new ActorDefeatedOccurrence(target.Id));
         }
+    }
+
+    private void ApplyDefend(DefendAppliedOperation defend, List<BattleOccurrence> occurrences)
+    {
+        occurrences.Add(new DefendAppliedOccurrence(defend.ActorId));
     }
 
     private void ReplaceCombatant(BattleCombatantState updatedCombatant)

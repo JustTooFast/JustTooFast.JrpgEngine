@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
@@ -20,9 +19,9 @@ public sealed class FixedDamageBattleActionDecorator : IBattleActionResolver
     {
         _innerResolver = innerResolver ?? throw new ArgumentNullException(nameof(innerResolver));
 
-        if (damage <= 0)
+        if (damage < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(damage), "Damage must be greater than zero.");
+            throw new ArgumentOutOfRangeException(nameof(damage), "Damage cannot be negative.");
         }
 
         _damage = damage;
@@ -52,17 +51,19 @@ public sealed class FixedDamageBattleActionDecorator : IBattleActionResolver
             return inner;
         }
 
-        string? targetId = action.TargetIds?.Count > 0
-            ? action.TargetIds[0]
-            : null;
+        var operations = new List<BattleOperation>(inner.Operations.Count);
 
-        if (string.IsNullOrWhiteSpace(targetId))
+        foreach (BattleOperation operation in inner.Operations)
         {
-            return inner;
+            if (operation is DamageOperation damageOperation)
+            {
+                operations.Add(new DamageOperation(damageOperation.TargetId, _damage));
+            }
+            else
+            {
+                operations.Add(operation);
+            }
         }
-
-        List<BattleOperation> operations = inner.Operations.ToList();
-        operations.Add(new DamageOperation(targetId, _damage));
 
         return new BattleResolution(operations);
     }

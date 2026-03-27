@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
@@ -71,25 +70,27 @@ public sealed class RandomDamageBattleActionDecorator : IBattleActionResolver
             return inner;
         }
 
-        string? targetId = action.TargetIds?.Count > 0
-            ? action.TargetIds[0]
-            : null;
-
-        if (string.IsNullOrWhiteSpace(targetId))
-        {
-            return inner;
-        }
-
         bool wasMiss = _random.NextDouble() < _missChance;
-        if (wasMiss)
+
+        var operations = new List<BattleOperation>(inner.Operations.Count);
+
+        foreach (BattleOperation operation in inner.Operations)
         {
-            return inner;
+            if (operation is DamageOperation damageOperation)
+            {
+                if (wasMiss)
+                {
+                    continue;
+                }
+
+                int rolledDamage = _random.Next(_minDamage, _maxDamage + 1);
+                operations.Add(new DamageOperation(damageOperation.TargetId, rolledDamage));
+            }
+            else
+            {
+                operations.Add(operation);
+            }
         }
-
-        int rolledDamage = _random.Next(_minDamage, _maxDamage + 1);
-
-        List<BattleOperation> operations = inner.Operations.ToList();
-        operations.Add(new DamageOperation(targetId, rolledDamage));
 
         return new BattleResolution(operations);
     }

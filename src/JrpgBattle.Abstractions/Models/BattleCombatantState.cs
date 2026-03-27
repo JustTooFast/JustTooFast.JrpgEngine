@@ -56,5 +56,5 @@ public sealed record BattleCombatantState
 
     public int MaxHp { get; }
 
-    public bool IsDefeated => CurrentHp <= 0;
+    public bool IsDefeated => CurrentHp == 0;
 }

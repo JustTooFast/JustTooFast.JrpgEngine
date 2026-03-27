@@ -30,10 +30,19 @@ public sealed class BattleRuntimeFactory : IBattleRuntimeFactory
             throw new ArgumentNullException(nameof(definition));
         }
 
+        IBattleFlow flow = _flowFactory()
+            ?? throw new InvalidOperationException("Flow factory returned null.");
+
+        IEnemyActionChooser enemyActionChooser = _enemyActionChooserFactory()
+            ?? throw new InvalidOperationException("Enemy action chooser factory returned null.");
+
+        IBattleActionResolver actionResolver = _actionResolverFactory()
+            ?? throw new InvalidOperationException("Action resolver factory returned null.");
+
         return new BattleRuntime(
             definition,
-            _flowFactory(),
-            _enemyActionChooserFactory(),
-            _actionResolverFactory());
+            flow,
+            enemyActionChooser,
+            actionResolver);
     }
 }

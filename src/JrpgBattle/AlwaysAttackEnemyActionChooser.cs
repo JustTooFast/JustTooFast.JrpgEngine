@@ -34,16 +34,22 @@ public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
             ? BattleTeam.Enemy
             : BattleTeam.Party;
 
-        string? targetId = state.Combatants
+        string[] availableTargetIds = state.Combatants
             .Where(c => c.Team == targetTeam && !c.IsDefeated)
             .Select(c => c.Id)
-            .FirstOrDefault();
+            .ToArray();
+
+        if (availableTargetIds.Length == 0)
+        {
+            return new BattleActionChoice(
+                actionKind: BattleActionKind.Attack,
+                actionId: null,
+                targetIds: Array.Empty<string>());
+        }
 
         return new BattleActionChoice(
             actionKind: BattleActionKind.Attack,
             actionId: null,
-            targetIds: string.IsNullOrWhiteSpace(targetId)
-                ? null
-                : new[] { targetId });
+            targetIds: new[] { availableTargetIds[0] });
     }
 }

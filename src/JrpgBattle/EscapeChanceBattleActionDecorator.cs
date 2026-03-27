@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
@@ -57,11 +56,20 @@ public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
             return inner;
         }
 
-        bool wasEscapeSuccessful = _random.NextDouble() < _escapeSuccessChance;
+        var operations = new List<BattleOperation>(inner.Operations.Count + 1);
 
-        List<BattleOperation> operations = inner.Operations.ToList();
+        foreach (BattleOperation operation in inner.Operations)
+        {
+            if (operation is EscapeSucceededOperation or EscapeFailedOperation)
+            {
+                continue;
+            }
+
+            operations.Add(operation);
+        }
+
         operations.Add(
-            wasEscapeSuccessful
+            _random.NextDouble() < _escapeSuccessChance
                 ? new EscapeSucceededOperation()
                 : new EscapeFailedOperation());
 

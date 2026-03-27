@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
@@ -35,25 +36,86 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
             throw new InvalidOperationException("Actor is defeated.");
         }
 
-        if (action.TargetIds is not null)
+        ValidateActionShape(action);
+
+        return action.ActionKind switch
         {
-            foreach (string targetId in action.TargetIds)
-            {
-                if (string.IsNullOrWhiteSpace(targetId))
-                {
-                    throw new ArgumentException("Target id is required.", nameof(action));
-                }
+            BattleActionKind.Attack => ResolveAttack(state, actor, action),
+            BattleActionKind.Defend => ResolveDefend(actor),
+            BattleActionKind.Escape => ResolveEscape(),
+            _ => new BattleResolution(Array.Empty<BattleOperation>())
+        };
+    }
 
-                BattleCombatantState target = state.Combatants.FirstOrDefault(c => c.Id == targetId)
-                    ?? throw new InvalidOperationException($"Target '{targetId}' not found.");
+    private static BattleResolution ResolveAttack(
+        BattleState state,
+        BattleCombatantState actor,
+        BattleActionChoice action)
+    {
+        IReadOnlyList<string> targetIds = action.TargetIds ?? Array.Empty<string>();
 
-                if (target.IsDefeated)
-                {
-                    throw new InvalidOperationException("Target is defeated.");
-                }
-            }
+        if (targetIds.Count == 0)
+        {
+            return new BattleResolution(Array.Empty<BattleOperation>());
         }
 
+        var operations = new List<BattleOperation>();
+
+        foreach (string targetId in targetIds)
+        {
+            BattleCombatantState? target = state.Combatants.FirstOrDefault(c => c.Id == targetId);
+
+            // Resolution-time invalid target handling is graceful no-op/fizzle, not exception.
+            if (target is null)
+            {
+                continue;
+            }
+
+            if (target.Team == actor.Team)
+            {
+                continue;
+            }
+
+            if (target.IsDefeated)
+            {
+                continue;
+            }
+
+            operations.Add(new DamageOperation(target.Id, 1));
+        }
+
+        return new BattleResolution(operations);
+    }
+
+    private static BattleResolution ResolveDefend(BattleCombatantState actor)
+    {
+        return new BattleResolution(new BattleOperation[]
+        {
+            new DefendAppliedOperation(actor.Id)
+        });
+    }
+
+    private static BattleResolution ResolveEscape()
+    {
+        // Base resolver does not decide escape outcome.
+        // Escape-specific decorators may append EscapeSucceededOperation
+        // or EscapeFailedOperation deterministically.
         return new BattleResolution(Array.Empty<BattleOperation>());
+    }
+
+    private static void ValidateActionShape(BattleActionChoice action)
+    {
+        if (action.TargetIds is null)
+        {
+            return;
+        }
+
+        foreach (string targetId in action.TargetIds)
+        {
+            if (string.IsNullOrWhiteSpace(targetId))
+            {
+                throw new ArgumentException("Target ids cannot contain null or whitespace values.", nameof(action));
+            }
+        }
     }
 }

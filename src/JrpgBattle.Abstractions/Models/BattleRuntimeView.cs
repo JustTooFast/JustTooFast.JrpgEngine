@@ -3,24 +3,41 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
 public sealed record BattleRuntimeView
 {
     public BattleRuntimeView(
-        BattleState state,
+        BattleState battleState,
         BattleInputRequest? inputRequest,
         IReadOnlyList<BattleOccurrence> occurrences,
         BattleResult? result)
     {
-        State = state ?? throw new ArgumentNullException(nameof(state));
+        if (battleState is null)
+        {
+            throw new ArgumentNullException(nameof(battleState));
+        }
+
+        if (occurrences is null)
+        {
+            throw new ArgumentNullException(nameof(occurrences));
+        }
+
+        if (occurrences.Any(static o => o is null))
+        {
+            throw new ArgumentException("Occurrences cannot contain null entries.", nameof(occurrences));
+        }
+
+        BattleState = battleState;
         InputRequest = inputRequest;
-        Occurrences = occurrences ?? throw new ArgumentNullException(nameof(occurrences));
+        Occurrences = new ReadOnlyCollection<BattleOccurrence>(occurrences.ToArray());
         Result = result;
     }
 
-    public BattleState State { get; }
+    public BattleState BattleState { get; }
 
     public BattleInputRequest? InputRequest { get; }
 
