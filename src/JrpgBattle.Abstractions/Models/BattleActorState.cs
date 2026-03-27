@@ -5,9 +5,9 @@ using System;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
-public sealed record BattleCombatantState
+public sealed record BattleActorState
 {
-    public BattleCombatantState(
+    public BattleActorState(
         string id,
         string name,
         BattleTeam team,

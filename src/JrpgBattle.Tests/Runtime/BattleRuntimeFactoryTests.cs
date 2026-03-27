@@ -97,13 +97,13 @@ public sealed class BattleRuntimeFactoryTests
     private static BattleDefinition CreateDefinition()
     {
         return new BattleDefinition(
-            partyCombatants:
+            partyActors:
             [
-                new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 10)
+                new BattleActorDefinition("hero", "Hero", BattleTeam.Party, 10)
             ],
-            enemyCombatants:
+            enemyActors:
             [
-                new BattleCombatantDefinition("slime", "Slime", BattleTeam.Enemy, 10)
+                new BattleActorDefinition("slime", "Slime", BattleTeam.Enemy, 10)
             ]);
     }
 

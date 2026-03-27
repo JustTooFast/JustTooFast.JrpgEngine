@@ -11,51 +11,51 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 public sealed record BattleDefinition
 {
     public BattleDefinition(
-        IReadOnlyList<BattleCombatantDefinition> partyCombatants,
-        IReadOnlyList<BattleCombatantDefinition> enemyCombatants)
+        IReadOnlyList<BattleActorDefinition> partyActors,
+        IReadOnlyList<BattleActorDefinition> enemyActors)
     {
-        if (partyCombatants is null)
+        if (partyActors is null)
         {
-            throw new ArgumentNullException(nameof(partyCombatants));
+            throw new ArgumentNullException(nameof(partyActors));
         }
 
-        if (enemyCombatants is null)
+        if (enemyActors is null)
         {
-            throw new ArgumentNullException(nameof(enemyCombatants));
+            throw new ArgumentNullException(nameof(enemyActors));
         }
 
-        if (partyCombatants.Count == 0)
+        if (partyActors.Count == 0)
         {
-            throw new ArgumentException("At least one party combatant is required.", nameof(partyCombatants));
+            throw new ArgumentException("At least one party actor is required.", nameof(partyActors));
         }
 
-        if (enemyCombatants.Count == 0)
+        if (enemyActors.Count == 0)
         {
-            throw new ArgumentException("At least one enemy combatant is required.", nameof(enemyCombatants));
+            throw new ArgumentException("At least one enemy actor is required.", nameof(enemyActors));
         }
 
-        if (partyCombatants.Any(static c => c is null))
+        if (partyActors.Any(static c => c is null))
         {
-            throw new ArgumentException("Party combatants cannot contain null entries.", nameof(partyCombatants));
+            throw new ArgumentException("Party actors cannot contain null entries.", nameof(partyActors));
         }
 
-        if (enemyCombatants.Any(static c => c is null))
+        if (enemyActors.Any(static c => c is null))
         {
-            throw new ArgumentException("Enemy combatants cannot contain null entries.", nameof(enemyCombatants));
+            throw new ArgumentException("Enemy actors cannot contain null entries.", nameof(enemyActors));
         }
 
-        if (partyCombatants.Any(static c => c.Team != BattleTeam.Party))
+        if (partyActors.Any(static c => c.Team != BattleTeam.Party))
         {
-            throw new ArgumentException("All party combatants must have Party team.", nameof(partyCombatants));
+            throw new ArgumentException("All party actors must have Party team.", nameof(partyActors));
         }
 
-        if (enemyCombatants.Any(static c => c.Team != BattleTeam.Enemy))
+        if (enemyActors.Any(static c => c.Team != BattleTeam.Enemy))
         {
-            throw new ArgumentException("All enemy combatants must have Enemy team.", nameof(enemyCombatants));
+            throw new ArgumentException("All enemy actors must have Enemy team.", nameof(enemyActors));
         }
 
-        string[] duplicateIds = partyCombatants
-            .Concat(enemyCombatants)
+        string[] duplicateIds = partyActors
+            .Concat(enemyActors)
             .GroupBy(static c => c.Id, StringComparer.Ordinal)
             .Where(static g => g.Count() > 1)
             .Select(static g => g.Key)
@@ -63,14 +63,14 @@ public sealed record BattleDefinition
 
         if (duplicateIds.Length > 0)
         {
-            throw new ArgumentException("Combatant ids must be unique across the whole battle.", nameof(partyCombatants));
+            throw new ArgumentException("Actor ids must be unique across the whole battle.", nameof(partyActors));
         }
 
-        PartyCombatants = new ReadOnlyCollection<BattleCombatantDefinition>(partyCombatants.ToArray());
-        EnemyCombatants = new ReadOnlyCollection<BattleCombatantDefinition>(enemyCombatants.ToArray());
+        PartyActors = new ReadOnlyCollection<BattleActorDefinition>(partyActors.ToArray());
+        EnemyActors = new ReadOnlyCollection<BattleActorDefinition>(enemyActors.ToArray());
     }
 
-    public IReadOnlyList<BattleCombatantDefinition> PartyCombatants { get; }
+    public IReadOnlyList<BattleActorDefinition> PartyActors { get; }
 
-    public IReadOnlyList<BattleCombatantDefinition> EnemyCombatants { get; }
+    public IReadOnlyList<BattleActorDefinition> EnemyActors { get; }
 }

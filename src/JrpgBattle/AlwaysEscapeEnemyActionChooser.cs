@@ -22,7 +22,7 @@ public sealed class AlwaysEscapeEnemyActionChooser : IEnemyActionChooser
             throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
-        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
+        BattleActorState actor = state.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
 
         if (actor.IsDefeated)

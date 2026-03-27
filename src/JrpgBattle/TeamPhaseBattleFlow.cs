@@ -31,14 +31,14 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
         _nextIndexInCurrentTeam = 0;
     }
 
-    public BattleFlowStep Advance(BattleState state)
+    public BattleFlowStep Advance(BattleFlowState state)
     {
         if (state is null)
         {
             throw new ArgumentNullException(nameof(state));
         }
 
-        EnsureInitialized(state);
+        EnsureInitialized(state.BattleState);
 
         if (TryFindReadyActor(state, _currentTeam, _nextIndexInCurrentTeam, out string? actorId, out int actorIndex))
         {
@@ -94,19 +94,19 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
             return;
         }
 
-        _partyActorIds = state.Combatants
-            .Where(c => c.Team == BattleTeam.Party)
-            .Select(c => c.Id)
+        _partyActorIds = state.Actors
+            .Where(static c => c.Team == BattleTeam.Party)
+            .Select(static c => c.Id)
             .ToList();
 
-        _enemyActorIds = state.Combatants
-            .Where(c => c.Team == BattleTeam.Enemy)
-            .Select(c => c.Id)
+        _enemyActorIds = state.Actors
+            .Where(static c => c.Team == BattleTeam.Enemy)
+            .Select(static c => c.Id)
             .ToList();
     }
 
     private bool TryFindReadyActor(
-        BattleState state,
+        BattleFlowState state,
         BattleTeam team,
         int startIndex,
         out string? actorId,
@@ -120,8 +120,8 @@ public sealed class TeamPhaseBattleFlow : IBattleFlow
         {
             string candidateActorId = actorIds[i];
 
-            BattleCombatantState? combatant = state.Combatants.FirstOrDefault(c => c.Id == candidateActorId);
-            if (combatant is not null && !combatant.IsDefeated)
+            BattleFlowActorState actorState = state.GetActorState(candidateActorId);
+            if (actorState.CanAct)
             {
                 actorId = candidateActorId;
                 actorIndex = i;

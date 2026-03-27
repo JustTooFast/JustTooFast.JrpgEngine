@@ -19,9 +19,9 @@ public sealed class RandomEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10),
-            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 10, 10),
-            new BattleCombatantState("hero_2", "Hero 2", BattleTeam.Party, 10, 10)
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10),
+            new BattleActorState("hero_1", "Hero 1", BattleTeam.Party, 10, 10),
+            new BattleActorState("hero_2", "Hero 2", BattleTeam.Party, 10, 10)
         ]);
 
         var results1 = new[]
@@ -48,8 +48,8 @@ public sealed class RandomEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10),
-            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 0, 10)
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10),
+            new BattleActorState("hero_1", "Hero 1", BattleTeam.Party, 0, 10)
         ]);
 
         BattleActionChoice choice = chooser.ChooseAction(state, "slime");

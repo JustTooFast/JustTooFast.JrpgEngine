@@ -27,14 +27,14 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
         _nextIndex = 0;
     }
 
-    public BattleFlowStep Advance(BattleState state)
+    public BattleFlowStep Advance(BattleFlowState state)
     {
         if (state is null)
         {
             throw new ArgumentNullException(nameof(state));
         }
 
-        EnsureInitialized(state);
+        EnsureInitialized(state.BattleState);
 
         if (_orderedActorIds!.Count == 0)
         {
@@ -48,8 +48,8 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
             int candidateIndex = (_nextIndex + i) % _orderedActorIds.Count;
             string candidateActorId = _orderedActorIds[candidateIndex];
 
-            BattleCombatantState? combatant = state.Combatants.FirstOrDefault(c => c.Id == candidateActorId);
-            if (combatant is not null && !combatant.IsDefeated)
+            BattleFlowActorState actorState = state.GetActorState(candidateActorId);
+            if (actorState.CanAct)
             {
                 _nextIndex = (candidateIndex + 1) % _orderedActorIds.Count;
 
@@ -71,14 +71,14 @@ public sealed class RoundRobinBattleFlow : IBattleFlow
             return;
         }
 
-        List<string> partyIds = state.Combatants
-            .Where(c => c.Team == BattleTeam.Party)
-            .Select(c => c.Id)
+        List<string> partyIds = state.Actors
+            .Where(static c => c.Team == BattleTeam.Party)
+            .Select(static c => c.Id)
             .ToList();
 
-        List<string> enemyIds = state.Combatants
-            .Where(c => c.Team == BattleTeam.Enemy)
-            .Select(c => c.Id)
+        List<string> enemyIds = state.Actors
+            .Where(static c => c.Team == BattleTeam.Enemy)
+            .Select(static c => c.Id)
             .ToList();
 
         _orderedActorIds = BuildInterleavedOrder(

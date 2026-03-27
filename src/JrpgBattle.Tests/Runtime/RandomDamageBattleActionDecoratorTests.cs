@@ -48,8 +48,8 @@ public sealed class RandomDamageBattleActionDecoratorTests
 
     private static BattleState CreateState() => new(
     [
-        new BattleCombatantState("hero", "Hero", BattleTeam.Party, 10, 10),
-        new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
+        new BattleActorState("hero", "Hero", BattleTeam.Party, 10, 10),
+        new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10)
     ]);
 
     private static BattleActionChoice CreateAction() =>

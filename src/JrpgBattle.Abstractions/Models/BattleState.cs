@@ -10,24 +10,24 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
 public sealed record BattleState
 {
-    public BattleState(IReadOnlyList<BattleCombatantState> combatants)
+    public BattleState(IReadOnlyList<BattleActorState> actors)
     {
-        if (combatants is null)
+        if (actors is null)
         {
-            throw new ArgumentNullException(nameof(combatants));
+            throw new ArgumentNullException(nameof(actors));
         }
 
-        if (combatants.Count == 0)
+        if (actors.Count == 0)
         {
-            throw new ArgumentException("At least one combatant is required.", nameof(combatants));
+            throw new ArgumentException("At least one actor is required.", nameof(actors));
         }
 
-        if (combatants.Any(static c => c is null))
+        if (actors.Any(static c => c is null))
         {
-            throw new ArgumentException("Combatants cannot contain null entries.", nameof(combatants));
+            throw new ArgumentException("Actors cannot contain null entries.", nameof(actors));
         }
 
-        string[] duplicateIds = combatants
+        string[] duplicateIds = actors
             .GroupBy(static c => c.Id, StringComparer.Ordinal)
             .Where(static g => g.Count() > 1)
             .Select(static g => g.Key)
@@ -35,11 +35,11 @@ public sealed record BattleState
 
         if (duplicateIds.Length > 0)
         {
-            throw new ArgumentException("Combatant ids must be unique.", nameof(combatants));
+            throw new ArgumentException("Actor ids must be unique.", nameof(actors));
         }
 
-        Combatants = new ReadOnlyCollection<BattleCombatantState>(combatants.ToArray());
+        Actors = new ReadOnlyCollection<BattleActorState>(actors.ToArray());
     }
 
-    public IReadOnlyList<BattleCombatantState> Combatants { get; }
+    public IReadOnlyList<BattleActorState> Actors { get; }
 }

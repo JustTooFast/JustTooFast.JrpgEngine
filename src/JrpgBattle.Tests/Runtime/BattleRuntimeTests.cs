@@ -51,7 +51,7 @@ public sealed class BattleRuntimeTests
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        BattleCombatantState slime = view.BattleState.Combatants.Single(c => c.Id == "slime_1");
+        BattleActorState slime = view.BattleState.Actors.Single(c => c.Id == "slime_1");
 
         Assert.AreEqual(5, slime.CurrentHp);
         Assert.IsTrue(view.Occurrences.OfType<ActionStartedOccurrence>().Any());
@@ -99,7 +99,7 @@ public sealed class BattleRuntimeTests
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        BattleCombatantState hero = view.BattleState.Combatants.Single(c => c.Id == "hero");
+        BattleActorState hero = view.BattleState.Actors.Single(c => c.Id == "hero");
 
         Assert.AreEqual(0, hero.CurrentHp);
         Assert.IsNotNull(view.Result);
@@ -258,13 +258,13 @@ public sealed class BattleRuntimeTests
         int enemyHp = 10)
     {
         BattleDefinition definition = new(
-            partyCombatants:
+            partyActors:
             [
-                new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, heroHp)
+                new BattleActorDefinition("hero", "Hero", BattleTeam.Party, heroHp)
             ],
-            enemyCombatants:
+            enemyActors:
             [
-                new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, enemyHp)
+                new BattleActorDefinition("slime_1", "Slime 1", BattleTeam.Enemy, enemyHp)
             ]);
 
         return new BattleRuntime(

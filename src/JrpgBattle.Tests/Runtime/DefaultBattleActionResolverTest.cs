@@ -51,8 +51,8 @@ public sealed class DefaultBattleActionResolverTests
 
         BattleState state = new(
         [
-            new BattleCombatantState("hero", "Hero", BattleTeam.Party, 0, 10),
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
+            new BattleActorState("hero", "Hero", BattleTeam.Party, 0, 10),
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10)
         ]);
 
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(() =>
@@ -154,8 +154,8 @@ public sealed class DefaultBattleActionResolverTests
     {
         return new BattleState(
         [
-            new BattleCombatantState("hero", "Hero", BattleTeam.Party, 10, 10),
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
+            new BattleActorState("hero", "Hero", BattleTeam.Party, 10, 10),
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10)
         ]);
     }
 }

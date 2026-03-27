@@ -19,7 +19,7 @@ internal sealed class ScriptedBattleFlow : IBattleFlow
         _steps = new Queue<BattleFlowStep>(steps);
     }
 
-    public BattleFlowStep Advance(BattleState state)
+    public BattleFlowStep Advance(BattleFlowState state)
     {
         if (state is null)
         {

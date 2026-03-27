@@ -22,7 +22,7 @@ public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
             throw new ArgumentException("Actor id is required.", nameof(actorId));
         }
 
-        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
+        BattleActorState actor = state.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
 
         if (actor.IsDefeated)
@@ -34,7 +34,7 @@ public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
             ? BattleTeam.Enemy
             : BattleTeam.Party;
 
-        string[] availableTargetIds = state.Combatants
+        string[] availableTargetIds = state.Actors
             .Where(c => c.Team == targetTeam && !c.IsDefeated)
             .Select(c => c.Id)
             .ToArray();

@@ -19,8 +19,8 @@ public sealed class AlwaysAttackEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10),
-            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 10, 10)
+            new BattleActorState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10),
+            new BattleActorState("hero_1", "Hero 1", BattleTeam.Party, 10, 10)
         ]);
 
         BattleActionChoice choice = chooser.ChooseAction(state, "slime_1");
@@ -39,8 +39,8 @@ public sealed class AlwaysAttackEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10),
-            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 0, 10)
+            new BattleActorState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10),
+            new BattleActorState("hero_1", "Hero 1", BattleTeam.Party, 0, 10)
         ]);
 
         BattleActionChoice choice = chooser.ChooseAction(state, "slime_1");
@@ -65,7 +65,7 @@ public sealed class AlwaysAttackEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10)
+            new BattleActorState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10)
         ]);
 
         Assert.ThrowsException<ArgumentException>(() => chooser.ChooseAction(state, ""));
@@ -78,7 +78,7 @@ public sealed class AlwaysAttackEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10)
+            new BattleActorState("slime_1", "Slime 1", BattleTeam.Enemy, 10, 10)
         ]);
 
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
@@ -94,8 +94,8 @@ public sealed class AlwaysAttackEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime_1", "Slime 1", BattleTeam.Enemy, 0, 10),
-            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 10, 10)
+            new BattleActorState("slime_1", "Slime 1", BattleTeam.Enemy, 0, 10),
+            new BattleActorState("hero_1", "Hero 1", BattleTeam.Party, 10, 10)
         ]);
 
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(

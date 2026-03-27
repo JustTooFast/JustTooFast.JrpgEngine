@@ -62,11 +62,11 @@ public sealed class ConsoleBattleHostApp
         Console.WriteLine();
         Console.WriteLine("=== Battle State ===");
 
-        foreach (BattleCombatantState combatant in view.BattleState.Combatants)
+        foreach (BattleActorState actor in view.BattleState.Actors)
         {
             Console.WriteLine(
-                $"{combatant.Name} [{combatant.Team}] HP {combatant.CurrentHp}/{combatant.MaxHp}" +
-                (combatant.IsDefeated ? " (Defeated)" : string.Empty));
+                $"{actor.Name} [{actor.Team}] HP {actor.CurrentHp}/{actor.MaxHp}" +
+                (actor.IsDefeated ? " (Defeated)" : string.Empty));
         }
 
         Console.WriteLine();
@@ -138,7 +138,7 @@ public sealed class ConsoleBattleHostApp
         BattleRuntimeView view,
         BattleInputRequest inputRequest)
     {
-        BattleCombatantState actor = view.BattleState.Combatants.First(c => c.Id == inputRequest.ActorId);
+        BattleActorState actor = view.BattleState.Actors.First(c => c.Id == inputRequest.ActorId);
 
         Console.WriteLine();
         Console.WriteLine($"Choose action for {actor.Name}:");
@@ -185,7 +185,7 @@ public sealed class ConsoleBattleHostApp
             ? BattleTeam.Enemy
             : BattleTeam.Party;
 
-        List<BattleCombatantState> targets = view.BattleState.Combatants
+        List<BattleActorState> targets = view.BattleState.Actors
             .Where(c => c.Team == targetTeam && !c.IsDefeated)
             .ToList();
 
@@ -198,7 +198,7 @@ public sealed class ConsoleBattleHostApp
 
         for (int i = 0; i < targets.Count; i++)
         {
-            BattleCombatantState target = targets[i];
+            BattleActorState target = targets[i];
             Console.WriteLine($"{i + 1}. {target.Name} ({target.CurrentHp}/{target.MaxHp})");
         }
 

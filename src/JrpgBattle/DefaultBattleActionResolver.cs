@@ -28,7 +28,7 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
             throw new ArgumentNullException(nameof(action));
         }
 
-        BattleCombatantState actor = state.Combatants.FirstOrDefault(c => c.Id == actorId)
+        BattleActorState actor = state.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
 
         if (actor.IsDefeated)
@@ -49,7 +49,7 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
 
     private static BattleResolution ResolveAttack(
         BattleState state,
-        BattleCombatantState actor,
+        BattleActorState actor,
         BattleActionChoice action)
     {
         IReadOnlyList<string> targetIds = action.TargetIds ?? Array.Empty<string>();
@@ -63,7 +63,7 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
 
         foreach (string targetId in targetIds)
         {
-            BattleCombatantState? target = state.Combatants.FirstOrDefault(c => c.Id == targetId);
+            BattleActorState? target = state.Actors.FirstOrDefault(c => c.Id == targetId);
 
             // Resolution-time invalid target handling is graceful no-op/fizzle, not exception.
             if (target is null)
@@ -87,7 +87,7 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
         return new BattleResolution(operations);
     }
 
-    private static BattleResolution ResolveDefend(BattleCombatantState actor)
+    private static BattleResolution ResolveDefend(BattleActorState actor)
     {
         return new BattleResolution(new BattleOperation[]
         {

@@ -7,5 +7,5 @@ namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
 
 public interface IBattleFlow
 {
-    BattleFlowStep Advance(BattleState state);
+    BattleFlowStep Advance(BattleFlowState state);
 }

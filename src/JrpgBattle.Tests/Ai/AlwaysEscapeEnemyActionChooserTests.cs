@@ -18,7 +18,7 @@ public sealed class AlwaysEscapeEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10)
         ]);
 
         BattleActionChoice choice = chooser.ChooseAction(state, "slime");
@@ -43,7 +43,7 @@ public sealed class AlwaysEscapeEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 10, 10)
         ]);
 
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(

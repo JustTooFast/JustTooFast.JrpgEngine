@@ -11,7 +11,7 @@ public static class SampleBattleScenario
     public static BattleDefinition CreateBattleDefinition()
     {
         return new BattleDefinition(
-            partyCombatants: new List<BattleCombatantDefinition>
+            partyActors: new List<BattleActorDefinition>
             {
                 new(
                     id: "hero_1",
@@ -24,7 +24,7 @@ public static class SampleBattleScenario
                     team: BattleTeam.Party,
                     maxHp: 15),
             },
-            enemyCombatants: new List<BattleCombatantDefinition>
+            enemyActors: new List<BattleActorDefinition>
             {
                 new(
                     id: "slime_1",

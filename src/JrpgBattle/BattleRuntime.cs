@@ -31,9 +31,9 @@ public sealed class BattleRuntime : IBattleRuntime
         _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
 
-        var combatants = definition.PartyCombatants
-            .Concat(definition.EnemyCombatants)
-            .Select(c => new BattleCombatantState(
+        var actors = definition.PartyActors
+            .Concat(definition.EnemyActors)
+            .Select(c => new BattleActorState(
                 id: c.Id,
                 name: c.Name,
                 team: c.Team,
@@ -41,7 +41,7 @@ public sealed class BattleRuntime : IBattleRuntime
                 maxHp: c.MaxHp))
             .ToList();
 
-        _runtimeState = new BattleRuntimeState(new BattleState(combatants));
+        _runtimeState = new BattleRuntimeState(new BattleState(actors));
     }
 
     public BattleRuntimeView GetView()
@@ -55,7 +55,6 @@ public sealed class BattleRuntime : IBattleRuntime
 
     public void Advance()
     {
-        // ALWAYS clear occurrences unless we produce new ones this frame
         _runtimeState.SetOccurrences(Array.Empty<BattleOccurrence>());
 
         if (_runtimeState.Result is not null)
@@ -82,16 +81,18 @@ public sealed class BattleRuntime : IBattleRuntime
         }
 
         // ---- FLOW ADVANCE ----
-        BattleFlowStep flowStep = _flow.Advance(_runtimeState.BattleState);
+        BattleFlowState flowState = BuildFlowState();
+
+        BattleFlowStep flowStep = _flow.Advance(flowState);
 
         if (!flowStep.HasAdvanced || string.IsNullOrWhiteSpace(flowStep.ReadyActorId))
         {
             return;
         }
 
-        BattleCombatantState actor = FindCombatant(flowStep.ReadyActorId);
+        BattleActorState actor = FindActor(flowStep.ReadyActorId);
 
-        // dead actors never act
+        // safety guard only — flow should already enforce this
         if (actor.IsDefeated)
         {
             return;
@@ -103,9 +104,31 @@ public sealed class BattleRuntime : IBattleRuntime
             return;
         }
 
-        // enemy turn
-        BattleActionChoice enemyChoice = _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
+        BattleActionChoice enemyChoice =
+            _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
+
         ExecuteAction(actor.Id, enemyChoice);
+    }
+
+    private BattleFlowState BuildFlowState()
+    {
+        var actorStates = _runtimeState.ActorStates
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp =>
+                {
+                    BattleActorRuntimeState runtime = kvp.Value;
+                    BattleActorState actor = FindActor(kvp.Key);
+
+                    return new BattleFlowActorState(
+                        actorId: actor.Id,
+                        isDefeated: actor.IsDefeated,
+                        isDefending: runtime.IsDefending,
+                        preventsActing: runtime.PreventedFromActing);
+                },
+                StringComparer.Ordinal);
+
+        return new BattleFlowState(_runtimeState.BattleState, actorStates);
     }
 
     public void SubmitPlayerChoice(BattleActionChoice choice)
@@ -137,19 +160,15 @@ public sealed class BattleRuntime : IBattleRuntime
     {
         var occurrences = new List<BattleOccurrence>();
 
-        // ---- ACTION START ----
         occurrences.Add(new ActionStartedOccurrence(actorId, choice.ActionKind, choice.ActionId));
 
-        // ---- RESOLVE ----
-        BattleResolution resolution = _actionResolver.Resolve(_runtimeState.BattleState, actorId, choice);
+        BattleResolution resolution =
+            _actionResolver.Resolve(_runtimeState.BattleState, actorId, choice);
 
-        // MUST always process resolution (even if empty)
         ApplyResolution(actorId, resolution, occurrences);
 
-        // ---- ACTION END ----
         occurrences.Add(new ActionResolvedOccurrence(actorId, choice.ActionKind, choice.ActionId));
 
-        // ---- RESULT CHECK ----
         FinalizeBattleResultIfNeeded();
 
         _runtimeState.SetOccurrences(occurrences);
@@ -165,7 +184,6 @@ public sealed class BattleRuntime : IBattleRuntime
             ApplyOperation(actorId, operation, occurrences);
         }
 
-        // IMPORTANT: Explicit no-op handling
         if (resolution.Operations.Count == 0)
         {
             occurrences.Add(new ActionHadNoEffectOccurrence(actorId));
@@ -181,6 +199,14 @@ public sealed class BattleRuntime : IBattleRuntime
         {
             case DamageOperation damage:
                 ApplyDamage(damage, occurrences);
+                break;
+
+            case ApplyConditionOperation apply:
+                ApplyCondition(apply, occurrences);
+                break;
+
+            case RemoveConditionOperation remove:
+                RemoveCondition(remove, occurrences);
                 break;
 
             case EscapeSucceededOperation:
@@ -204,19 +230,19 @@ public sealed class BattleRuntime : IBattleRuntime
 
     private void ApplyDamage(DamageOperation damage, List<BattleOccurrence> occurrences)
     {
-        BattleCombatantState target = FindCombatant(damage.TargetId);
+        BattleActorState target = FindActor(damage.TargetId);
+        BattleActorRuntimeState targetState = _runtimeState.GetActorState(target.Id);
 
         int previousHp = target.CurrentHp;
         int currentHp = Math.Max(0, previousHp - damage.Amount);
 
-        // IMPORTANT: zero-effect still produces occurrence
         if (currentHp == previousHp)
         {
             occurrences.Add(new DamageHadNoEffectOccurrence(target.Id));
             return;
         }
 
-        ReplaceCombatant(new BattleCombatantState(
+        ReplaceActor(new BattleActorState(
             id: target.Id,
             name: target.Name,
             team: target.Team,
@@ -225,30 +251,86 @@ public sealed class BattleRuntime : IBattleRuntime
 
         occurrences.Add(new HpChangedOccurrence(target.Id, previousHp, currentHp));
 
+        // ---- DAMAGE-TRIGGERED CONDITION CLEAR ----
+        foreach (var condition in targetState.GetActiveConditionsClearedByDamage())
+        {
+            targetState.RemoveCondition(condition);
+            occurrences.Add(new ConditionRemovedOccurrence(target.Id, condition.ConditionId));
+        }
+
+        // ---- DEFEAT HANDLING ----
         if (previousHp > 0 && currentHp == 0)
         {
+            // clear defending
+            targetState.ClearDefending();
+
+            // remove ALL remaining conditions (after damage-clear)
+            var remainingConditions = targetState.GetActiveConditions().ToList();
+
+            foreach (var condition in remainingConditions)
+            {
+                targetState.RemoveCondition(condition);
+                occurrences.Add(new ConditionRemovedOccurrence(target.Id, condition.ConditionId));
+            }
+
             occurrences.Add(new ActorDefeatedOccurrence(target.Id));
+        }
+    }
+
+    private void ApplyCondition(ApplyConditionOperation op, List<BattleOccurrence> occurrences)
+    {
+        var actorState = _runtimeState.GetActorState(op.ActorId);
+
+        var instance = new ConditionInstance(
+            op.ActorId,
+            op.ConditionId,
+            op.DurationBand,
+            op.PreventsActing,
+            op.ClearedByDamage,
+            op.PersistsAfterBattle);
+
+        actorState.AddCondition(instance);
+
+        occurrences.Add(new ConditionAppliedOccurrence(op.ActorId, op.ConditionId));
+    }
+
+    private void RemoveCondition(RemoveConditionOperation op, List<BattleOccurrence> occurrences)
+    {
+        var actorState = _runtimeState.GetActorState(op.ActorId);
+
+        var toRemove = actorState.Conditions
+            .Where(c => !c.IsExpired && c.ConditionId == op.ConditionId)
+            .ToList();
+
+        foreach (var condition in toRemove)
+        {
+            actorState.RemoveCondition(condition);
+            occurrences.Add(new ConditionRemovedOccurrence(op.ActorId, op.ConditionId));
         }
     }
 
     private void ApplyDefend(DefendAppliedOperation defend, List<BattleOccurrence> occurrences)
     {
+        var actorState = _runtimeState.GetActorState(defend.ActorId);
+
+        actorState.SetDefending(true);
+
         occurrences.Add(new DefendAppliedOccurrence(defend.ActorId));
     }
 
-    private void ReplaceCombatant(BattleCombatantState updatedCombatant)
+    private void ReplaceActor(BattleActorState updatedActor)
     {
-        List<BattleCombatantState> updatedCombatants = _runtimeState.BattleState.Combatants
-            .Select(c => c.Id == updatedCombatant.Id ? updatedCombatant : c)
+        List<BattleActorState> updatedActors = _runtimeState.BattleState.Actors
+            .Select(c => c.Id == updatedActor.Id ? updatedActor : c)
             .ToList();
 
-        _runtimeState.SetBattleState(new BattleState(updatedCombatants));
+        _runtimeState.SetBattleState(new BattleState(updatedActors));
     }
 
-    private BattleCombatantState FindCombatant(string actorId)
+    private BattleActorState FindActor(string actorId)
     {
-        return _runtimeState.BattleState.Combatants.FirstOrDefault(c => c.Id == actorId)
-            ?? throw new InvalidOperationException($"Combatant '{actorId}' was not found.");
+        return _runtimeState.BattleState.Actors.FirstOrDefault(c => c.Id == actorId)
+            ?? throw new InvalidOperationException($"Actor '{actorId}' was not found.");
     }
 
     private void FinalizeBattleResultIfNeeded()
@@ -258,8 +340,8 @@ public sealed class BattleRuntime : IBattleRuntime
             return;
         }
 
-        bool anyPartyRemaining = _runtimeState.BattleState.Combatants.Any(c => c.Team == BattleTeam.Party && !c.IsDefeated);
-        bool anyEnemyRemaining = _runtimeState.BattleState.Combatants.Any(c => c.Team == BattleTeam.Enemy && !c.IsDefeated);
+        bool anyPartyRemaining = _runtimeState.BattleState.Actors.Any(c => c.Team == BattleTeam.Party && !c.IsDefeated);
+        bool anyEnemyRemaining = _runtimeState.BattleState.Actors.Any(c => c.Team == BattleTeam.Enemy && !c.IsDefeated);
 
         if (!anyPartyRemaining)
         {
