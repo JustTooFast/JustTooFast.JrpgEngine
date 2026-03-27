@@ -19,10 +19,10 @@ public sealed class RandomEnemyActionChooserTests
 
         var state = new BattleState(
         [
-            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
-        ],
-        false,
-        BattleOutcome.None);
+            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10),
+            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 10, 10),
+            new BattleCombatantState("hero_2", "Hero 2", BattleTeam.Party, 10, 10)
+        ]);
 
         var results1 = new[]
         {
@@ -39,5 +39,22 @@ public sealed class RandomEnemyActionChooserTests
         };
 
         CollectionAssert.AreEqual(results1, results2);
+    }
+
+    [TestMethod]
+    public void ChooseAction_Should_Fall_Back_To_Defend_When_No_Living_Targets_Exist()
+    {
+        var chooser = new RandomEnemyActionChooser(123);
+
+        var state = new BattleState(
+        [
+            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10),
+            new BattleCombatantState("hero_1", "Hero 1", BattleTeam.Party, 0, 10)
+        ]);
+
+        BattleActionChoice choice = chooser.ChooseAction(state, "slime");
+
+        Assert.AreEqual(BattleActionKind.Defend, choice.ActionKind);
+        Assert.IsNull(choice.TargetIds);
     }
 }

@@ -19,13 +19,13 @@ public sealed class AlwaysDefendEnemyActionChooserTests
         var state = new BattleState(
         [
             new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
-        ],
-        false,
-        BattleOutcome.None);
+        ]);
 
-        BattleActionKind action = chooser.ChooseAction(state, "slime");
+        BattleActionChoice choice = chooser.ChooseAction(state, "slime");
 
-        Assert.AreEqual(BattleActionKind.Defend, action);
+        Assert.AreEqual(BattleActionKind.Defend, choice.ActionKind);
+        Assert.IsNull(choice.ActionId);
+        Assert.IsNull(choice.TargetIds);
     }
 
     [TestMethod]
@@ -34,5 +34,21 @@ public sealed class AlwaysDefendEnemyActionChooserTests
         var chooser = new AlwaysDefendEnemyActionChooser();
 
         Assert.ThrowsException<ArgumentNullException>(() => chooser.ChooseAction(null!, "slime"));
+    }
+
+    [TestMethod]
+    public void ChooseAction_Should_Throw_When_Actor_Is_Not_Found()
+    {
+        var chooser = new AlwaysDefendEnemyActionChooser();
+
+        var state = new BattleState(
+        [
+            new BattleCombatantState("slime", "Slime", BattleTeam.Enemy, 10, 10)
+        ]);
+
+        InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
+            () => chooser.ChooseAction(state, "missing"));
+
+        Assert.AreEqual("Actor 'missing' not found.", ex.Message);
     }
 }

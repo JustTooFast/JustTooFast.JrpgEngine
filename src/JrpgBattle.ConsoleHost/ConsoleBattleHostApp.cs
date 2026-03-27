@@ -25,7 +25,7 @@ public sealed class ConsoleBattleHostApp
 
     public int Run()
     {
-        BattleDefinition definition = V0BattleScenario.CreateBattleDefinition();
+        BattleDefinition definition = SampleBattleScenario.CreateBattleDefinition();
         IBattleRuntime runtime = _battleRuntimeFactory.Create(definition);
 
         while (true)

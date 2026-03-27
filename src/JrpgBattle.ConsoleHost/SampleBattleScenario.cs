@@ -6,7 +6,7 @@ using JustTooFast.JrpgBattle.Abstractions.Models;
 
 namespace JustTooFast.JrpgBattle.ConsoleHost.Scenario;
 
-public static class V0BattleScenario
+public static class SampleBattleScenario
 {
     public static BattleDefinition CreateBattleDefinition()
     {

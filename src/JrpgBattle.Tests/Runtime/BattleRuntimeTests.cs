@@ -6,6 +6,7 @@ using System.Linq;
 using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
+using JustTooFast.JrpgBattle.Tests.Fakes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace JustTooFast.JrpgBattle.Tests.Runtime;
@@ -16,572 +17,261 @@ public sealed class BattleRuntimeTests
     [TestMethod]
     public void Advance_Should_Request_Player_Input_When_Party_Actor_Becomes_Ready()
     {
-        IBattleRuntime runtime = CreateRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver());
 
-        BattleAdvanceResult result = runtime.Advance();
+        runtime.Advance();
 
-        Assert.IsTrue(result.HasChanged);
-        Assert.IsTrue(result.IsPlayerInputNeeded);
-        Assert.IsNull(result.ActionResult);
-        Assert.IsNull(result.BattleResult);
+        BattleRuntimeView view = runtime.GetView();
+
+        Assert.IsNotNull(view.InputRequest);
+        Assert.AreEqual("hero", view.InputRequest.ActorId);
+        Assert.AreEqual(0, view.Occurrences.Count);
+        Assert.IsNull(view.Result);
     }
 
     [TestMethod]
-    public void Advance_Should_Return_NoChange_When_Battle_Already_Ended()
+    public void Advance_Should_Execute_Pending_Player_Choice_On_Next_Advance()
     {
-        IBattleRuntime runtime = CreateRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver());
 
-        _ = runtime.Advance();
-        _ = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" }));
+        runtime.Advance();
 
-        _ = runtime.Advance();
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
+        BattleRuntimeView view = runtime.GetView();
+        BattleCombatantState slime = view.BattleState.Combatants.Single(c => c.Id == "slime_1");
 
-        Assert.IsNotNull(result.BattleResult);
-
-        BattleAdvanceResult endedResult = runtime.Advance();
-
-        Assert.IsFalse(endedResult.HasChanged);
-        Assert.IsFalse(endedResult.IsPlayerInputNeeded);
-        Assert.IsNull(endedResult.ActionResult);
-        Assert.IsNull(endedResult.BattleResult);
-    }
-
-    [TestMethod]
-    public void Advance_Should_Return_PlayerInputNeeded_When_PlayerChoice_Is_Pending_And_BlockingPolicy_Blocks()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        BattleAdvanceResult first = runtime.Advance();
-        Assert.IsTrue(first.IsPlayerInputNeeded);
-
-        BattleAdvanceResult second = runtime.Advance();
-
-        Assert.IsFalse(second.HasChanged);
-        Assert.IsTrue(second.IsPlayerInputNeeded);
-        Assert.IsNull(second.ActionResult);
-        Assert.IsNull(second.BattleResult);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Resolve_Action_When_Waiting_For_Player_Input()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        BattleAdvanceResult first = runtime.Advance();
-        Assert.IsTrue(first.IsPlayerInputNeeded);
-
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
-
-        Assert.IsTrue(result.HasChanged);
-        Assert.IsFalse(result.IsPlayerInputNeeded);
-        Assert.IsNotNull(result.ActionResult);
-        Assert.IsNull(result.BattleResult);
-
-        BattleCombatantState slime = runtime.GetView().State.Combatants.Single(c => c.Id == "slime_1");
         Assert.AreEqual(5, slime.CurrentHp);
+        Assert.IsTrue(view.Occurrences.OfType<ActionStartedOccurrence>().Any());
+        Assert.IsTrue(view.Occurrences.OfType<HpChangedOccurrence>().Any());
+        Assert.IsTrue(view.Occurrences.OfType<ActionResolvedOccurrence>().Any());
+        Assert.IsNull(view.InputRequest);
+        Assert.IsNull(view.Result);
     }
 
     [TestMethod]
-    public void SubmitPlayerAction_Should_Not_End_Battle_When_Action_Is_Defend()
+    public void Advance_Should_End_Battle_With_Victory_When_Last_Enemy_Is_Defeated()
     {
-        IBattleRuntime runtime = CreateRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver(),
+            enemyHp: 5);
 
-        _ = runtime.Advance();
-
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Defend, targetId: null));
-
-        Assert.IsNotNull(result.ActionResult);
-        Assert.IsNull(result.BattleResult);
-        Assert.AreEqual(BattleActionKind.Defend, result.ActionResult.ActionKind);
-
-        BattleCombatantState slime = runtime.GetView().State.Combatants.Single(c => c.Id == "slime_1");
-        Assert.AreEqual(10, slime.CurrentHp);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_End_Battle_With_Escaped_When_Action_Is_Escape()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        _ = runtime.Advance();
-
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
-
-        Assert.IsNotNull(result.BattleResult);
-        Assert.AreEqual(BattleOutcome.Escaped, result.BattleResult.Outcome);
-        Assert.IsNull(result.BattleResult.Reward);
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" }));
+        runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        Assert.IsTrue(view.State.IsEnded);
-        Assert.AreEqual(BattleOutcome.Escaped, view.State.Outcome);
-    }
 
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Throw_When_Action_Is_Null()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        _ = runtime.Advance();
-
-        Assert.ThrowsException<ArgumentNullException>(() => runtime.SubmitPlayerAction(null!));
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Throw_When_Battle_Has_Already_Ended()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        _ = runtime.Advance();
-        _ = runtime.SubmitPlayerAction(new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
-        _ = runtime.Advance();
-        _ = runtime.SubmitPlayerAction(new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
-
-        InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
-            () => runtime.SubmitPlayerAction(
-                new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1")));
-
-        Assert.AreEqual("Battle has already ended.", ex.Message);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Throw_When_Runtime_Is_Not_Waiting_For_Player_Input()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
-            () => runtime.SubmitPlayerAction(
-                new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1")));
-
-        Assert.AreEqual("Battle is not waiting for a player choice.", ex.Message);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Throw_When_ActorId_Does_Not_Match_Pending_Player_Actor()
-    {
-        IBattleRuntime runtime = CreateTwoHeroRuntime();
-
-        BattleAdvanceResult first = runtime.Advance();
-        Assert.IsTrue(first.IsPlayerInputNeeded);
-
-        InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
-            () => runtime.SubmitPlayerAction(
-                new BattleActionChoice("hero_2", BattleActionKind.Attack, "slime_1")));
-
-        Assert.AreEqual("Submitted action actor does not match the pending player actor.", ex.Message);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Throw_When_Submitted_Action_Is_Not_For_Party_Actor()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        _ = runtime.Advance();
-
-        InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
-            () => runtime.SubmitPlayerAction(
-                new BattleActionChoice("slime_1", BattleActionKind.Attack, "hero")));
-
-        Assert.AreEqual("Submitted action actor does not match the pending player actor.", ex.Message);
-    }
-
-    [TestMethod]
-    public void Battle_Should_End_In_Victory_When_Player_Defeats_Last_Enemy()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        BattleAdvanceResult step1 = runtime.Advance();
-        Assert.IsTrue(step1.IsPlayerInputNeeded);
-
-        BattleAdvanceResult step2 = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
-        Assert.IsNull(step2.BattleResult);
-
-        BattleAdvanceResult step3 = runtime.Advance();
-        Assert.IsTrue(step3.IsPlayerInputNeeded);
-        Assert.IsNull(step3.ActionResult);
-        Assert.IsNull(step3.BattleResult);
-
-        BattleAdvanceResult step4 = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
-
-        Assert.IsNotNull(step4.BattleResult);
-        Assert.AreEqual(BattleOutcome.Victory, step4.BattleResult.Outcome);
-        Assert.IsNotNull(step4.BattleResult.Reward);
-        Assert.AreEqual(10, step4.BattleResult.Reward!.ExperiencePoints);
-
-        BattleRuntimeView view = runtime.GetView();
-        Assert.IsTrue(view.State.IsEnded);
-        Assert.AreEqual(BattleOutcome.Victory, view.State.Outcome);
-    }
-
-    [TestMethod]
-    public void Advance_Should_Request_Player_Input_Again_After_Player_Action_When_Flow_Selects_Player_Again()
-    {
-        IBattleRuntime runtime = CreateRuntime();
-
-        BattleAdvanceResult first = runtime.Advance();
-        Assert.IsTrue(first.IsPlayerInputNeeded);
-
-        BattleAdvanceResult playerResult = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1"));
-
-        Assert.IsNotNull(playerResult.ActionResult);
-
-        BattleAdvanceResult next = runtime.Advance();
-
-        Assert.IsTrue(next.HasChanged);
-        Assert.IsTrue(next.IsPlayerInputNeeded);
-        Assert.IsNull(next.ActionResult);
-        Assert.IsNull(next.BattleResult);
+        Assert.IsNotNull(view.Result);
+        Assert.AreEqual(BattleOutcome.Victory, view.Result.Outcome);
+        Assert.IsTrue(view.Occurrences.OfType<ActorDefeatedOccurrence>().Any());
     }
 
     [TestMethod]
     public void Advance_Should_End_Battle_With_Defeat_When_Enemy_Defeats_Last_Party_Actor()
     {
-        // Arrange
-        IBattleRuntime runtime = CreateEnemyFirstDefeatRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "slime_1")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver(),
+            heroHp: 5);
 
-        // Act
-        BattleAdvanceResult result = runtime.Advance();
-
-        // Assert
-        Assert.IsTrue(result.HasChanged);
-        Assert.IsFalse(result.IsPlayerInputNeeded);
-        Assert.IsNotNull(result.ActionResult);
-        Assert.IsNotNull(result.BattleResult);
-
-        Assert.AreEqual(BattleActionKind.Attack, result.ActionResult.ActionKind);
-        Assert.AreEqual(BattleOutcome.Defeat, result.BattleResult.Outcome);
-        Assert.IsNull(result.BattleResult.Reward);
+        runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        Assert.IsTrue(view.State.IsEnded);
-        Assert.AreEqual(BattleOutcome.Defeat, view.State.Outcome);
+        BattleCombatantState hero = view.BattleState.Combatants.Single(c => c.Id == "hero");
 
-        BattleCombatantState hero = view.State.Combatants.Single(c => c.Id == "hero");
         Assert.AreEqual(0, hero.CurrentHp);
+        Assert.IsNotNull(view.Result);
+        Assert.AreEqual(BattleOutcome.Defeat, view.Result.Outcome);
     }
 
     [TestMethod]
-    public void Advance_Should_Return_NoChange_After_Defeat()
+    public void Advance_Should_End_Battle_With_Escaped_When_Escape_Succeeds()
     {
-        // Arrange
-        IBattleRuntime runtime = CreateEnemyFirstDefeatRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            new EscapeChanceBattleActionDecorator(
+                CreateFixedResolver(),
+                1.0,
+                123));
 
-        // Act
-        BattleAdvanceResult defeatResult = runtime.Advance();
-        Assert.IsNotNull(defeatResult.BattleResult);
-        Assert.AreEqual(BattleOutcome.Defeat, defeatResult.BattleResult.Outcome);
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Escape, null, null));
+        runtime.Advance();
 
-        BattleAdvanceResult nextResult = runtime.Advance();
+        BattleRuntimeView view = runtime.GetView();
 
-        // Assert
-        Assert.IsFalse(nextResult.HasChanged);
-        Assert.IsFalse(nextResult.IsPlayerInputNeeded);
-        Assert.IsNull(nextResult.ActionResult);
-        Assert.IsNull(nextResult.BattleResult);
+        Assert.IsNotNull(view.Result);
+        Assert.AreEqual(BattleOutcome.Escaped, view.Result.Outcome);
+        Assert.IsTrue(view.Occurrences.OfType<EscapeSucceededOccurrence>().Any());
     }
 
     [TestMethod]
-    public void Advance_Should_Return_NoChange_After_Escape()
+    public void Advance_Should_Continue_Battle_When_Escape_Fails()
     {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            new EscapeChanceBattleActionDecorator(
+                CreateFixedResolver(),
+                0.0,
+                123));
 
-        // Act
-        _ = runtime.Advance();
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Escape, null, null));
+        runtime.Advance();
 
-        BattleAdvanceResult escapeResult = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
+        BattleRuntimeView view = runtime.GetView();
 
-        Assert.IsNotNull(escapeResult.BattleResult);
-        Assert.AreEqual(BattleOutcome.Escaped, escapeResult.BattleResult.Outcome);
-
-        BattleAdvanceResult nextResult = runtime.Advance();
-
-        // Assert
-        Assert.IsFalse(nextResult.HasChanged);
-        Assert.IsFalse(nextResult.IsPlayerInputNeeded);
-        Assert.IsNull(nextResult.ActionResult);
-        Assert.IsNull(nextResult.BattleResult);
+        Assert.IsNull(view.Result);
+        Assert.IsTrue(view.Occurrences.OfType<EscapeFailedOccurrence>().Any());
     }
 
     [TestMethod]
-    public void SubmitPlayerAction_Should_Throw_After_Escape()
+    public void Advance_Should_Emit_NoEffect_Occurrence_For_Empty_Resolution()
     {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            new DefaultBattleActionResolver());
 
-        // Act
-        _ = runtime.Advance();
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Wait, null, null));
+        runtime.Advance();
 
-        BattleAdvanceResult escapeResult = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
+        BattleRuntimeView view = runtime.GetView();
 
-        Assert.IsNotNull(escapeResult.BattleResult);
-        Assert.AreEqual(BattleOutcome.Escaped, escapeResult.BattleResult.Outcome);
+        Assert.IsTrue(view.Occurrences.OfType<ActionHadNoEffectOccurrence>().Any());
+    }
 
-        // Assert
+    [TestMethod]
+    public void Advance_Should_Emit_Defend_Applied_Occurrence_For_Defend()
+    {
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver());
+
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Defend, null, null));
+        runtime.Advance();
+
+        BattleRuntimeView view = runtime.GetView();
+
+        Assert.IsTrue(view.Occurrences.OfType<DefendAppliedOccurrence>().Any());
+        Assert.IsNull(view.Result);
+    }
+
+    [TestMethod]
+    public void SubmitPlayerChoice_Should_Throw_When_Runtime_Is_Not_Requesting_Input()
+    {
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(Array.Empty<BattleFlowStep>()),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver());
+
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
-            () => runtime.SubmitPlayerAction(
-                new BattleActionChoice("hero", BattleActionKind.Attack, "slime_1")));
+            () => runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" })));
 
-        Assert.AreEqual("Battle has already ended.", ex.Message);
+        Assert.AreEqual("The runtime is not currently requesting player input.", ex.Message);
     }
 
     [TestMethod]
-    public void SubmitPlayerAction_Should_Not_Change_Any_Combatant_Hp_When_Action_Is_Defend()
+    public void SubmitPlayerChoice_Should_Throw_When_Choice_Is_Null()
     {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver());
 
-        _ = runtime.Advance();
+        runtime.Advance();
 
-        BattleRuntimeView beforeView = runtime.GetView();
-        int heroHpBefore = beforeView.State.Combatants.Single(c => c.Id == "hero").CurrentHp;
-        int slimeHpBefore = beforeView.State.Combatants.Single(c => c.Id == "slime_1").CurrentHp;
-
-        // Act
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Defend, targetId: null));
-
-        // Assert
-        Assert.IsNotNull(result.ActionResult);
-        Assert.AreEqual(BattleActionKind.Defend, result.ActionResult.ActionKind);
-        Assert.IsNull(result.BattleResult);
-
-        BattleRuntimeView afterView = runtime.GetView();
-        int heroHpAfter = afterView.State.Combatants.Single(c => c.Id == "hero").CurrentHp;
-        int slimeHpAfter = afterView.State.Combatants.Single(c => c.Id == "slime_1").CurrentHp;
-
-        Assert.AreEqual(heroHpBefore, heroHpAfter);
-        Assert.AreEqual(slimeHpBefore, slimeHpAfter);
+        Assert.ThrowsException<ArgumentNullException>(() => runtime.SubmitPlayerChoice(null!));
     }
 
     [TestMethod]
-    public void Advance_Should_Resolve_Enemy_Action_When_Enemy_Actor_Becomes_Ready()
+    public void Advance_Should_Do_Nothing_After_Battle_Has_Completed()
     {
-        // Arrange
-        IBattleRuntime runtime = CreateEnemyFirstRoundRobinRuntime();
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver(),
+            enemyHp: 5);
 
-        // Act
-        BattleAdvanceResult result = runtime.Advance();
+        runtime.Advance();
+        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" }));
+        runtime.Advance();
 
-        // Assert
-        Assert.IsTrue(result.HasChanged);
-        Assert.IsFalse(result.IsPlayerInputNeeded);
-        Assert.IsNotNull(result.ActionResult);
-        Assert.IsNull(result.BattleResult);
+        Assert.IsNotNull(runtime.GetView().Result);
 
-        Assert.AreEqual(BattleActionKind.Attack, result.ActionResult.ActionKind);
-        Assert.AreEqual("slime_1", result.ActionResult.ActorId);
-        Assert.AreEqual("hero", result.ActionResult.TargetId);
-        Assert.AreEqual(5, result.ActionResult.DamageDealt);
+        runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        BattleCombatantState hero = view.State.Combatants.Single(c => c.Id == "hero");
-        Assert.AreEqual(15, hero.CurrentHp);
+        Assert.AreEqual(0, view.Occurrences.Count);
     }
 
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Not_End_Battle_When_Escape_Fails()
-    {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntimeWithFailedEscape();
-
-        BattleAdvanceResult first = runtime.Advance();
-        Assert.IsTrue(first.IsPlayerInputNeeded);
-
-        // Act
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
-
-        // Assert
-        Assert.IsNotNull(result.ActionResult);
-        Assert.IsFalse(result.ActionResult.WasEscapeSuccessful);
-        Assert.IsNull(result.BattleResult);
-
-        BattleRuntimeView view = runtime.GetView();
-        Assert.IsFalse(view.State.IsEnded);
-        Assert.AreEqual(BattleOutcome.None, view.State.Outcome);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_End_Battle_When_Escape_Succeeds()
-    {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntimeWithSuccessfulEscape();
-
-        BattleAdvanceResult first = runtime.Advance();
-        Assert.IsTrue(first.IsPlayerInputNeeded);
-
-        // Act
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
-
-        // Assert
-        Assert.IsNotNull(result.ActionResult);
-        Assert.IsTrue(result.ActionResult.WasEscapeSuccessful);
-        Assert.IsNotNull(result.BattleResult);
-        Assert.AreEqual(BattleOutcome.Escaped, result.BattleResult.Outcome);
-
-        BattleRuntimeView view = runtime.GetView();
-        Assert.IsTrue(view.State.IsEnded);
-        Assert.AreEqual(BattleOutcome.Escaped, view.State.Outcome);
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Continue_Battle_After_Failed_Escape()
-    {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntimeWithFailedEscape();
-
-        _ = runtime.Advance();
-
-        // Act
-        BattleAdvanceResult escapeResult = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Escape, targetId: null));
-
-        Assert.IsFalse(escapeResult.ActionResult!.WasEscapeSuccessful);
-
-        BattleAdvanceResult next = runtime.Advance();
-
-        // Assert
-        Assert.IsTrue(next.HasChanged);
-        Assert.IsTrue(
-            next.IsPlayerInputNeeded || next.ActionResult != null,
-            "Battle should continue after failed escape.");
-    }
-
-    [TestMethod]
-    public void SubmitPlayerAction_Should_Not_Change_State_When_Action_Is_Wait()
-    {
-        // Arrange
-        IBattleRuntime runtime = CreateRuntime();
-
-        _ = runtime.Advance();
-
-        BattleRuntimeView beforeView = runtime.GetView();
-        int heroHpBefore = beforeView.State.Combatants.Single(c => c.Id == "hero").CurrentHp;
-        int slimeHpBefore = beforeView.State.Combatants.Single(c => c.Id == "slime_1").CurrentHp;
-
-        // Act
-        BattleAdvanceResult result = runtime.SubmitPlayerAction(
-            new BattleActionChoice("hero", BattleActionKind.Wait, targetId: null));
-
-        // Assert
-        Assert.IsNotNull(result.ActionResult);
-        Assert.AreEqual(BattleActionKind.Wait, result.ActionResult.ActionKind);
-        Assert.IsNull(result.BattleResult);
-
-        BattleRuntimeView afterView = runtime.GetView();
-        int heroHpAfter = afterView.State.Combatants.Single(c => c.Id == "hero").CurrentHp;
-        int slimeHpAfter = afterView.State.Combatants.Single(c => c.Id == "slime_1").CurrentHp;
-
-        Assert.AreEqual(heroHpBefore, heroHpAfter);
-        Assert.AreEqual(slimeHpBefore, slimeHpAfter);
-    }
-
-    [TestMethod]
-    public void Advance_Should_Resolve_Enemy_Defend_Without_Requesting_Target()
-    {
-        IBattleRuntime runtime = CreateEnemyFirstDefendRuntime();
-
-        BattleAdvanceResult result = runtime.Advance();
-
-        Assert.IsTrue(result.HasChanged);
-        Assert.IsFalse(result.IsPlayerInputNeeded);
-        Assert.IsNotNull(result.ActionResult);
-        Assert.AreEqual(BattleActionKind.Defend, result.ActionResult.ActionKind);
-        Assert.IsNull(result.ActionResult.TargetId);
-        Assert.IsNull(result.BattleResult);
-    }
-
-    private static IBattleRuntime CreateRuntime()
+    private static IBattleRuntime CreateRuntime(
+        IBattleFlow flow,
+        IEnemyActionChooser enemyActionChooser,
+        IBattleActionResolver resolver,
+        int heroHp = 20,
+        int enemyHp = 10)
     {
         BattleDefinition definition = new(
             partyCombatants:
             [
-                new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)
+                new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, heroHp)
             ],
             enemyCombatants:
             [
-                new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)
+                new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, enemyHp)
             ]);
 
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new FirstLivingBattleFlow(),
-            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () => CreateFixedResolver(),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
-    }
-
-    private static IBattleRuntime CreateTwoHeroRuntime()
-    {
-        BattleDefinition definition = new(
-            partyCombatants:
-            [
-                new BattleCombatantDefinition("hero_1", "Hero 1", BattleTeam.Party, 20),
-                new BattleCombatantDefinition("hero_2", "Hero 2", BattleTeam.Party, 20)
-            ],
-            enemyCombatants:
-            [
-                new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)
-            ]);
-
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new FirstLivingBattleFlow(),
-            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () => CreateFixedResolver(),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
-    }
-
-    private static IBattleRuntime CreateEnemyFirstDefeatRuntime()
-    {
-        BattleDefinition definition = new(
-            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 5)],
-            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
-
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Enemy),
-            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () => CreateFixedResolver(),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
-    }
-
-    private static IBattleRuntime CreateEnemyFirstRoundRobinRuntime()
-    {
-        BattleDefinition definition = new(
-            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
-            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
-
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Enemy),
-            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () => CreateFixedResolver(),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
+        return new BattleRuntime(
+            definition,
+            flow,
+            enemyActionChooser,
+            resolver);
     }
 
     private static IBattleActionResolver CreateFixedResolver()
@@ -589,68 +279,5 @@ public sealed class BattleRuntimeTests
         return new FixedDamageBattleActionDecorator(
             new DefaultBattleActionResolver(),
             damage: 5);
-    }
-
-    private static IBattleRuntime CreateRuntimeWithFailedEscape()
-    {
-        BattleDefinition definition = new(
-            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
-            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
-
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new FirstLivingBattleFlow(),
-            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () =>
-                new EscapeChanceBattleActionDecorator(
-                    new FixedDamageBattleActionDecorator(
-                        new DefaultBattleActionResolver(),
-                        damage: 5),
-                    escapeSuccessChance: 0.0,
-                    seed: 123),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
-    }
-
-    private static IBattleRuntime CreateRuntimeWithSuccessfulEscape()
-    {
-        BattleDefinition definition = new(
-            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
-            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
-
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new FirstLivingBattleFlow(),
-            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () =>
-                new EscapeChanceBattleActionDecorator(
-                    new FixedDamageBattleActionDecorator(
-                        new DefaultBattleActionResolver(),
-                        damage: 5),
-                    escapeSuccessChance: 1.0,
-                    seed: 123),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
-    }
-
-    private static IBattleRuntime CreateEnemyFirstDefendRuntime()
-    {
-        BattleDefinition definition = new(
-            [new BattleCombatantDefinition("hero", "Hero", BattleTeam.Party, 20)],
-            [new BattleCombatantDefinition("slime_1", "Slime 1", BattleTeam.Enemy, 10)]);
-
-        IBattleRuntimeFactory factory = new BattleRuntimeFactory(
-            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Enemy),
-            enemyActionChooserFactory: () => new AlwaysDefendEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () => CreateFixedResolver(),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
-
-        return factory.Create(definition);
     }
 }

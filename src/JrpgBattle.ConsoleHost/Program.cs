@@ -5,7 +5,6 @@ using System;
 using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
-using JustTooFast.JrpgBattle.ConsoleHost;
 
 namespace JustTooFast.JrpgBattle.ConsoleHost;
 

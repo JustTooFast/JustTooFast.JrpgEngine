@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
-using JustTooFast.JrpgBattle.Abstractions.Contracts;
-using JustTooFast.JrpgBattle.Abstractions.Models;
 
 namespace JustTooFast.JrpgBattle.ConsoleHost;
 

@@ -13,81 +13,33 @@ namespace JustTooFast.JrpgBattle.Tests.Runtime;
 public sealed class BattleRuntimeFactoryTests
 {
     [TestMethod]
-    public void Constructor_Should_Throw_When_Flow_Is_Null()
+    public void Constructor_Should_Throw_When_FlowFactory_Is_Null()
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
                 flowFactory: null!,
                 enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-                actionResolverFactory: () => CreateFixedResolver(),
-                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
+                actionResolverFactory: () => CreateFixedResolver()));
     }
 
     [TestMethod]
-    public void Constructor_Should_Throw_When_EnemyActionChooser_Is_Null()
+    public void Constructor_Should_Throw_When_EnemyActionChooserFactory_Is_Null()
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                flowFactory: () => new FirstLivingBattleFlow(),
+                flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Party),
                 enemyActionChooserFactory: null!,
-                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-                actionResolverFactory: () => CreateFixedResolver(),
-                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
+                actionResolverFactory: () => CreateFixedResolver()));
     }
 
     [TestMethod]
-    public void Constructor_Should_Throw_When_EnemyTargetChooser_Is_Null()
+    public void Constructor_Should_Throw_When_ActionResolverFactory_Is_Null()
     {
         Assert.ThrowsException<ArgumentNullException>(() =>
             new BattleRuntimeFactory(
-                flowFactory: () => new FirstLivingBattleFlow(),
+                flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Party),
                 enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-                enemyTargetChooserFactory: null!,
-                actionResolverFactory: () => CreateFixedResolver(),
-                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
-    }
-
-    [TestMethod]
-    public void Constructor_Should_Throw_When_ActionResolver_Is_Null()
-    {
-        Assert.ThrowsException<ArgumentNullException>(() =>
-            new BattleRuntimeFactory(
-                flowFactory: () => new FirstLivingBattleFlow(),
-                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-                actionResolverFactory: null!,
-                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
-    }
-
-    [TestMethod]
-    public void Constructor_Should_Throw_When_RewardCalculator_Is_Null()
-    {
-        Assert.ThrowsException<ArgumentNullException>(() =>
-            new BattleRuntimeFactory(
-                flowFactory: () => new FirstLivingBattleFlow(),
-                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-                actionResolverFactory: () => CreateFixedResolver(),
-                rewardCalculatorFactory: null!,
-                playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy()));
-    }
-
-    [TestMethod]
-    public void Constructor_Should_Throw_When_PlayerChoiceBlockingPolicy_Is_Null()
-    {
-        Assert.ThrowsException<ArgumentNullException>(() =>
-            new BattleRuntimeFactory(
-                flowFactory: () => new FirstLivingBattleFlow(),
-                enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-                enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-                actionResolverFactory: () => CreateFixedResolver(),
-                rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-                playerChoiceBlockingPolicyFactory: null!));
+                actionResolverFactory: null!));
     }
 
     [TestMethod]
@@ -96,6 +48,20 @@ public sealed class BattleRuntimeFactoryTests
         IBattleRuntimeFactory factory = CreateFactory();
 
         Assert.ThrowsException<ArgumentNullException>(() => factory.Create(null!));
+    }
+
+    [TestMethod]
+    public void Create_Should_Throw_When_FlowFactory_Returns_Null()
+    {
+        var factory = new BattleRuntimeFactory(
+            flowFactory: () => null!,
+            enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
+            actionResolverFactory: () => CreateFixedResolver());
+
+        InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
+            () => factory.Create(CreateDefinition()));
+
+        Assert.AreEqual("Flow factory returned null.", ex.Message);
     }
 
     [TestMethod]
@@ -123,12 +89,9 @@ public sealed class BattleRuntimeFactoryTests
     private static IBattleRuntimeFactory CreateFactory()
     {
         return new BattleRuntimeFactory(
-            flowFactory: () => new FirstLivingBattleFlow(),
+            flowFactory: () => new RoundRobinBattleFlow(BattleTeam.Party),
             enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
-            enemyTargetChooserFactory: () => new FirstLivingEnemyTargetChooser(),
-            actionResolverFactory: () => CreateFixedResolver(),
-            rewardCalculatorFactory: () => new FixedXpBattleRewardCalculator(10),
-            playerChoiceBlockingPolicyFactory: () => new AlwaysBlockOnPlayerChoicePolicy());
+            actionResolverFactory: () => CreateFixedResolver());
     }
 
     private static BattleDefinition CreateDefinition()
