@@ -141,65 +141,54 @@ public sealed class ConsoleBattleHostApp
         BattleActorState actor = view.BattleState.Actors.First(c => c.Id == inputRequest.ActorId);
 
         Console.WriteLine();
-        Console.WriteLine($"Choose action for {actor.Name}:");
-        Console.WriteLine("1. Attack");
-        Console.WriteLine("2. Defend");
-        Console.WriteLine("3. Escape");
+        Console.WriteLine($"[{inputRequest.CurrentContext.Kind}] {inputRequest.CurrentContext.Title ?? "Choose"} for {actor.Name}:");
 
-        while (true)
+        if (inputRequest.RequiresTargetSelection && inputRequest.TargetSelection is not null)
         {
-            Console.Write("> ");
-            string? input = Console.ReadLine();
+            IReadOnlyList<BattleSelectableTarget> targets = inputRequest.TargetSelection.SelectableTargets;
 
-            switch (input)
+            for (int i = 0; i < targets.Count; i++)
             {
-                case "1":
-                {
-                    IReadOnlyList<string> targetIds = PromptForAttackTargets(view, actor.Team);
-                    return new BattleActionChoice(
-                        actionKind: BattleActionKind.Attack,
-                        actionId: null,
-                        targetIds: targetIds);
-                }
-
-                case "2":
-                    return new BattleActionChoice(
-                        actionKind: BattleActionKind.Defend,
-                        actionId: null,
-                        targetIds: null);
-
-                case "3":
-                    return new BattleActionChoice(
-                        actionKind: BattleActionKind.Escape,
-                        actionId: null,
-                        targetIds: null);
+                BattleSelectableTarget target = targets[i];
+                string status = target.IsEnabled ? string.Empty : " (disabled)";
+                Console.WriteLine($"{i + 1}. {target.Label}{status}");
             }
 
-            Console.WriteLine("Invalid choice.");
+            while (true)
+            {
+                Console.Write("> ");
+                string? input = Console.ReadLine();
+
+                if (int.TryParse(input, out int index) &&
+                    index >= 1 &&
+                    index <= targets.Count)
+                {
+                    BattleSelectableTarget selected = targets[index - 1];
+
+                    if (!selected.IsEnabled)
+                    {
+                        Console.WriteLine("Target is not selectable.");
+                        continue;
+                    }
+
+                    return new BattleActionChoice(
+                        actionKind: inputRequest.CurrentContext.ActionKind!.Value,
+                        actionId: inputRequest.CurrentContext.ActionId,
+                        targetMode: inputRequest.TargetSelection.TargetMode,
+                        targetIds: new[] { selected.ActorId });
+                }
+
+                Console.WriteLine("Invalid target.");
+            }
         }
-    }
 
-    private static IReadOnlyList<string> PromptForAttackTargets(BattleRuntimeView view, BattleTeam actorTeam)
-    {
-        BattleTeam targetTeam = actorTeam == BattleTeam.Party
-            ? BattleTeam.Enemy
-            : BattleTeam.Party;
+        IReadOnlyList<BattleMenuOption> options = inputRequest.Options;
 
-        List<BattleActorState> targets = view.BattleState.Actors
-            .Where(c => c.Team == targetTeam && !c.IsDefeated)
-            .ToList();
-
-        if (targets.Count == 0)
+        for (int i = 0; i < options.Count; i++)
         {
-            return Array.Empty<string>();
-        }
-
-        Console.WriteLine("Choose target:");
-
-        for (int i = 0; i < targets.Count; i++)
-        {
-            BattleActorState target = targets[i];
-            Console.WriteLine($"{i + 1}. {target.Name} ({target.CurrentHp}/{target.MaxHp})");
+            BattleMenuOption option = options[i];
+            string status = option.IsEnabled ? string.Empty : $" (disabled: {option.DisabledReason})";
+            Console.WriteLine($"{i + 1}. {option.Label}{status}");
         }
 
         while (true)
@@ -209,12 +198,33 @@ public sealed class ConsoleBattleHostApp
 
             if (int.TryParse(input, out int index) &&
                 index >= 1 &&
-                index <= targets.Count)
+                index <= options.Count)
             {
-                return new[] { targets[index - 1].Id };
+                BattleMenuOption selected = options[index - 1];
+
+                if (!selected.IsEnabled)
+                {
+                    Console.WriteLine("Option is disabled.");
+                    continue;
+                }
+
+                if (selected.Kind == BattleMenuOptionKind.Back)
+                {
+                    return new BattleActionChoice(
+                        actionKind: BattleActionKind.Wait,
+                        actionId: null,
+                        targetMode: BattleTargetMode.None,
+                        targetIds: null);
+                }
+
+                return new BattleActionChoice(
+                    actionKind: selected.ActionKind ?? throw new InvalidOperationException("Selected action option did not provide an action kind."),
+                    actionId: selected.ActionId,
+                    targetMode: selected.TargetMode,
+                    targetIds: null);
             }
 
-            Console.WriteLine("Invalid target.");
+            Console.WriteLine("Invalid choice.");
         }
     }
 }

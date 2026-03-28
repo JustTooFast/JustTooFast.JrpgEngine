@@ -56,12 +56,14 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
             return new BattleActionChoice(
                 actionKind: BattleActionKind.Attack,
                 actionId: null,
+                targetMode: BattleTargetMode.SingleTarget,
                 targetIds: new[] { targetId });
         }
 
         return new BattleActionChoice(
             actionKind: BattleActionKind.Defend,
             actionId: null,
+            targetMode: BattleTargetMode.None,
             targetIds: null);
     }
 }

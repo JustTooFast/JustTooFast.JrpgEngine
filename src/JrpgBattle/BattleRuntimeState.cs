@@ -43,6 +43,12 @@ internal sealed class BattleRuntimeState
 
     public BattleResult? Result { get; private set; }
 
+    public bool HasPendingPlayerChoice => PendingPlayerChoice is not null;
+
+    public bool IsInputRequested => CurrentInputRequest is not null;
+
+    public bool IsCompleted => Result is not null;
+
     public BattleActorRuntimeState GetActorState(string actorId)
     {
         if (string.IsNullOrWhiteSpace(actorId))
@@ -84,6 +90,11 @@ internal sealed class BattleRuntimeState
 
     public void SetInputRequest(BattleInputRequest? inputRequest)
     {
+        if (inputRequest is not null)
+        {
+            ValidateInputRequestActor(inputRequest.ActorId);
+        }
+
         CurrentInputRequest = inputRequest;
     }
 
@@ -94,11 +105,45 @@ internal sealed class BattleRuntimeState
 
     public void SetOccurrences(IReadOnlyList<BattleOccurrence> occurrences)
     {
-        CurrentOccurrences = occurrences ?? throw new ArgumentNullException(nameof(occurrences));
+        if (occurrences is null)
+        {
+            throw new ArgumentNullException(nameof(occurrences));
+        }
+
+        if (occurrences.Any(static occurrence => occurrence is null))
+        {
+            throw new ArgumentException("Occurrences cannot contain null entries.", nameof(occurrences));
+        }
+
+        CurrentOccurrences = new ReadOnlyCollection<BattleOccurrence>(occurrences.ToArray());
+    }
+
+    public void ClearOccurrences()
+    {
+        CurrentOccurrences = Array.Empty<BattleOccurrence>();
     }
 
     public void SetResult(BattleResult? result)
     {
         Result = result;
+    }
+
+    private void ValidateInputRequestActor(string actorId)
+    {
+        BattleActorState actor = BattleState.Actors.FirstOrDefault(a => string.Equals(a.Id, actorId, StringComparison.Ordinal))
+            ?? throw new InvalidOperationException(
+                $"Input request actor '{actorId}' was not found in the current battle state.");
+
+        if (!_actorStates.ContainsKey(actor.Id))
+        {
+            throw new InvalidOperationException(
+                $"Input request actor '{actor.Id}' does not have corresponding runtime-owned actor state.");
+        }
+
+        if (actor.IsDefeated)
+        {
+            throw new InvalidOperationException(
+                $"Cannot request input for defeated actor '{actor.Id}'.");
+        }
     }
 }

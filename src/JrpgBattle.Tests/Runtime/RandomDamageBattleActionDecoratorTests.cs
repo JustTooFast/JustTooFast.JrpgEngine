@@ -15,9 +15,9 @@ public sealed class RandomDamageBattleActionDecoratorTests
     [TestMethod]
     public void Resolve_Should_Be_Deterministic_With_Seed()
     {
-        var resolver1 = new RandomDamageBattleActionDecorator(
+        IBattleActionResolver resolver1 = new RandomDamageBattleActionDecorator(
             new DefaultBattleActionResolver(), 1, 5, 0.0, 123);
-        var resolver2 = new RandomDamageBattleActionDecorator(
+        IBattleActionResolver resolver2 = new RandomDamageBattleActionDecorator(
             new DefaultBattleActionResolver(), 1, 5, 0.0, 123);
 
         int[] results1 =
@@ -38,7 +38,7 @@ public sealed class RandomDamageBattleActionDecoratorTests
     [TestMethod]
     public void Resolve_Should_Remove_Damage_When_MissChance_Is_One()
     {
-        var resolver = new RandomDamageBattleActionDecorator(
+        IBattleActionResolver resolver = new RandomDamageBattleActionDecorator(
             new DefaultBattleActionResolver(), 1, 5, 1.0, 123);
 
         BattleResolution resolution = resolver.Resolve(CreateState(), "hero", CreateAction());
@@ -53,5 +53,9 @@ public sealed class RandomDamageBattleActionDecoratorTests
     ]);
 
     private static BattleActionChoice CreateAction() =>
-        new(BattleActionKind.Attack, null, new[] { "slime" });
+        new(
+            BattleActionKind.Attack,
+            null,
+            BattleTargetMode.SingleTarget,
+            new[] { "slime" });
 }

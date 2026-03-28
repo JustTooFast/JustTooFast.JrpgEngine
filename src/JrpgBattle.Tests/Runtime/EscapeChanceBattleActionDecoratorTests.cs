@@ -26,10 +26,14 @@ public sealed class EscapeChanceBattleActionDecoratorTests
         BattleResolution resolution = resolver.Resolve(
             CreateState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime" }));
+            new BattleActionChoice(
+                BattleActionKind.Attack,
+                null,
+                BattleTargetMode.SingleTarget,
+                new[] { "slime" }));
 
         Assert.AreEqual(1, resolution.Operations.Count);
-        var damage = (DamageOperation)resolution.Operations.Single();
+        DamageOperation damage = (DamageOperation)resolution.Operations.Single();
         Assert.AreEqual("slime", damage.TargetId);
         Assert.AreEqual(5, damage.Amount);
     }
@@ -45,7 +49,11 @@ public sealed class EscapeChanceBattleActionDecoratorTests
         BattleResolution resolution = resolver.Resolve(
             CreateState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Escape, null, null));
+            new BattleActionChoice(
+                BattleActionKind.Escape,
+                null,
+                BattleTargetMode.None,
+                null));
 
         Assert.AreEqual(1, resolution.Operations.Count);
         Assert.IsInstanceOfType<EscapeFailedOperation>(resolution.Operations.Single());
@@ -62,7 +70,11 @@ public sealed class EscapeChanceBattleActionDecoratorTests
         BattleResolution resolution = resolver.Resolve(
             CreateState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Escape, null, null));
+            new BattleActionChoice(
+                BattleActionKind.Escape,
+                null,
+                BattleTargetMode.None,
+                null));
 
         Assert.AreEqual(1, resolution.Operations.Count);
         Assert.IsInstanceOfType<EscapeSucceededOperation>(resolution.Operations.Single());
@@ -81,19 +93,65 @@ public sealed class EscapeChanceBattleActionDecoratorTests
             escapeSuccessChance: 0.5,
             seed: 123);
 
-        var results1 = new[]
-        {
-            resolver1.Resolve(CreateState(), "hero", new BattleActionChoice(BattleActionKind.Escape, null, null)).Operations.Single().GetType(),
-            resolver1.Resolve(CreateState(), "hero", new BattleActionChoice(BattleActionKind.Escape, null, null)).Operations.Single().GetType(),
-            resolver1.Resolve(CreateState(), "hero", new BattleActionChoice(BattleActionKind.Escape, null, null)).Operations.Single().GetType()
-        };
+        Type[] results1 =
+        [
+            resolver1.Resolve(
+                CreateState(),
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Escape,
+                    null,
+                    BattleTargetMode.None,
+                    null)).Operations.Single().GetType(),
 
-        var results2 = new[]
-        {
-            resolver2.Resolve(CreateState(), "hero", new BattleActionChoice(BattleActionKind.Escape, null, null)).Operations.Single().GetType(),
-            resolver2.Resolve(CreateState(), "hero", new BattleActionChoice(BattleActionKind.Escape, null, null)).Operations.Single().GetType(),
-            resolver2.Resolve(CreateState(), "hero", new BattleActionChoice(BattleActionKind.Escape, null, null)).Operations.Single().GetType()
-        };
+            resolver1.Resolve(
+                CreateState(),
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Escape,
+                    null,
+                    BattleTargetMode.None,
+                    null)).Operations.Single().GetType(),
+
+            resolver1.Resolve(
+                CreateState(),
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Escape,
+                    null,
+                    BattleTargetMode.None,
+                    null)).Operations.Single().GetType()
+        ];
+
+        Type[] results2 =
+        [
+            resolver2.Resolve(
+                CreateState(),
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Escape,
+                    null,
+                    BattleTargetMode.None,
+                    null)).Operations.Single().GetType(),
+
+            resolver2.Resolve(
+                CreateState(),
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Escape,
+                    null,
+                    BattleTargetMode.None,
+                    null)).Operations.Single().GetType(),
+
+            resolver2.Resolve(
+                CreateState(),
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Escape,
+                    null,
+                    BattleTargetMode.None,
+                    null)).Operations.Single().GetType()
+        ];
 
         CollectionAssert.AreEqual(results1, results2);
     }

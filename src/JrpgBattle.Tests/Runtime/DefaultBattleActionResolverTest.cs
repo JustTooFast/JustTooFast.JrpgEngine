@@ -15,16 +15,23 @@ public sealed class DefaultBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Throw_When_State_Is_Null()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         Assert.ThrowsException<ArgumentNullException>(() =>
-            resolver.Resolve(null!, "hero", new BattleActionChoice(BattleActionKind.Defend, null, null)));
+            resolver.Resolve(
+                null!,
+                "hero",
+                new BattleActionChoice(
+                    BattleActionKind.Defend,
+                    null,
+                    BattleTargetMode.None,
+                    null)));
     }
 
     [TestMethod]
     public void Resolve_Should_Throw_When_Action_Is_Null()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         Assert.ThrowsException<ArgumentNullException>(() =>
             resolver.Resolve(CreateDefaultState(), "hero", null!));
@@ -33,13 +40,17 @@ public sealed class DefaultBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Throw_When_Actor_Is_Not_Found()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(() =>
             resolver.Resolve(
                 CreateDefaultState(),
                 "missing",
-                new BattleActionChoice(BattleActionKind.Defend, null, null)));
+                new BattleActionChoice(
+                    BattleActionKind.Defend,
+                    null,
+                    BattleTargetMode.None,
+                    null)));
 
         Assert.AreEqual("Actor 'missing' not found.", ex.Message);
     }
@@ -47,7 +58,7 @@ public sealed class DefaultBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Throw_When_Actor_Is_Defeated()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleState state = new(
         [
@@ -59,7 +70,11 @@ public sealed class DefaultBattleActionResolverTests
             resolver.Resolve(
                 state,
                 "hero",
-                new BattleActionChoice(BattleActionKind.Defend, null, null)));
+                new BattleActionChoice(
+                    BattleActionKind.Defend,
+                    null,
+                    BattleTargetMode.None,
+                    null)));
 
         Assert.AreEqual("Actor is defeated.", ex.Message);
     }
@@ -67,58 +82,95 @@ public sealed class DefaultBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Return_Damage_Operation_For_Valid_Attack_Target()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleResolution resolution = resolver.Resolve(
             CreateDefaultState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime" }));
+            new BattleActionChoice(
+                BattleActionKind.Attack,
+                null,
+                BattleTargetMode.SingleTarget,
+                new[] { "slime" }));
 
         Assert.AreEqual(1, resolution.Operations.Count);
         Assert.IsInstanceOfType<DamageOperation>(resolution.Operations.Single());
 
-        var damage = (DamageOperation)resolution.Operations.Single();
+        DamageOperation damage = (DamageOperation)resolution.Operations.Single();
         Assert.AreEqual("slime", damage.TargetId);
         Assert.AreEqual(1, damage.Amount);
     }
 
     [TestMethod]
-    public void Resolve_Should_Return_Empty_Resolution_For_Attack_With_No_Targets()
+    public void Resolve_Should_Return_Empty_Resolution_For_Attack_When_Target_Is_Not_Found()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleResolution resolution = resolver.Resolve(
             CreateDefaultState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Attack, null, Array.Empty<string>()));
+            new BattleActionChoice(
+                BattleActionKind.Attack,
+                null,
+                BattleTargetMode.SingleTarget,
+                new[] { "missing" }));
 
         Assert.AreEqual(0, resolution.Operations.Count);
     }
 
     [TestMethod]
-    public void Resolve_Should_Skip_Invalid_Attack_Targets_Gracefully()
+    public void Resolve_Should_Return_Empty_Resolution_For_Attack_When_Target_Is_On_Same_Team()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleResolution resolution = resolver.Resolve(
             CreateDefaultState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Attack, null, new[] { "missing", "hero", "slime" }));
+            new BattleActionChoice(
+                BattleActionKind.Attack,
+                null,
+                BattleTargetMode.SingleTarget,
+                new[] { "hero" }));
 
-        Assert.AreEqual(1, resolution.Operations.Count);
-        var damage = (DamageOperation)resolution.Operations.Single();
-        Assert.AreEqual("slime", damage.TargetId);
+        Assert.AreEqual(0, resolution.Operations.Count);
+    }
+
+    [TestMethod]
+    public void Resolve_Should_Return_Empty_Resolution_For_Attack_When_Target_Is_Defeated()
+    {
+        DefaultBattleActionResolver resolver = new();
+
+        BattleState state = new(
+        [
+            new BattleActorState("hero", "Hero", BattleTeam.Party, 10, 10),
+            new BattleActorState("slime", "Slime", BattleTeam.Enemy, 0, 10)
+        ]);
+
+        BattleResolution resolution = resolver.Resolve(
+            state,
+            "hero",
+            new BattleActionChoice(
+                BattleActionKind.Attack,
+                null,
+                BattleTargetMode.SingleTarget,
+                new[] { "slime" }));
+
+        Assert.AreEqual(0, resolution.Operations.Count);
     }
 
     [TestMethod]
     public void Resolve_Should_Return_Defend_Operation_For_Defend()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleResolution resolution = resolver.Resolve(
             CreateDefaultState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Defend, null, null));
+            new BattleActionChoice(
+                BattleActionKind.Defend,
+                null,
+                BattleTargetMode.None,
+                null));
 
         Assert.AreEqual(1, resolution.Operations.Count);
         Assert.IsInstanceOfType<DefendAppliedOperation>(resolution.Operations.Single());
@@ -127,12 +179,16 @@ public sealed class DefaultBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Return_Empty_Resolution_For_Escape_Base_Action()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleResolution resolution = resolver.Resolve(
             CreateDefaultState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Escape, null, null));
+            new BattleActionChoice(
+                BattleActionKind.Escape,
+                null,
+                BattleTargetMode.None,
+                null));
 
         Assert.AreEqual(0, resolution.Operations.Count);
     }
@@ -140,12 +196,16 @@ public sealed class DefaultBattleActionResolverTests
     [TestMethod]
     public void Resolve_Should_Return_Empty_Resolution_For_Wait()
     {
-        var resolver = new DefaultBattleActionResolver();
+        DefaultBattleActionResolver resolver = new();
 
         BattleResolution resolution = resolver.Resolve(
             CreateDefaultState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Wait, null, null));
+            new BattleActionChoice(
+                BattleActionKind.Wait,
+                null,
+                BattleTargetMode.None,
+                null));
 
         Assert.AreEqual(0, resolution.Operations.Count);
     }

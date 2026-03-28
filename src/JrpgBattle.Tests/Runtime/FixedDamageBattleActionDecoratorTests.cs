@@ -22,9 +22,13 @@ public sealed class FixedDamageBattleActionDecoratorTests
         BattleResolution resolution = resolver.Resolve(
             CreateState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime" }));
+            new BattleActionChoice(
+                BattleActionKind.Attack,
+                null,
+                BattleTargetMode.SingleTarget,
+                new[] { "slime" }));
 
-        var damage = (DamageOperation)resolution.Operations.Single();
+        DamageOperation damage = (DamageOperation)resolution.Operations.Single();
         Assert.AreEqual(5, damage.Amount);
     }
 
@@ -38,7 +42,11 @@ public sealed class FixedDamageBattleActionDecoratorTests
         BattleResolution resolution = resolver.Resolve(
             CreateState(),
             "hero",
-            new BattleActionChoice(BattleActionKind.Wait, null, null));
+            new BattleActionChoice(
+                BattleActionKind.Wait,
+                null,
+                BattleTargetMode.None,
+                null));
 
         Assert.AreEqual(0, resolution.Operations.Count);
     }

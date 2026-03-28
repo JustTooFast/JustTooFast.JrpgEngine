@@ -44,12 +44,14 @@ public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
             return new BattleActionChoice(
                 actionKind: BattleActionKind.Attack,
                 actionId: null,
+                targetMode: BattleTargetMode.None,
                 targetIds: Array.Empty<string>());
         }
 
         return new BattleActionChoice(
             actionKind: BattleActionKind.Attack,
             actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
             targetIds: new[] { availableTargetIds[0] });
     }
 }

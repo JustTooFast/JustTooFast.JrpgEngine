@@ -33,6 +33,7 @@ public sealed class AlwaysDefendEnemyActionChooser : IEnemyActionChooser
         return new BattleActionChoice(
             actionKind: BattleActionKind.Defend,
             actionId: null,
+            targetMode: BattleTargetMode.None,
             targetIds: null);
     }
 }

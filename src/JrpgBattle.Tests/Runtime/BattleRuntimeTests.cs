@@ -31,12 +31,13 @@ public sealed class BattleRuntimeTests
 
         Assert.IsNotNull(view.InputRequest);
         Assert.AreEqual("hero", view.InputRequest.ActorId);
+        Assert.AreEqual(BattleMenuContextKind.RootCommand, view.InputRequest.CurrentContext.Kind);
         Assert.AreEqual(0, view.Occurrences.Count);
         Assert.IsNull(view.Result);
     }
 
     [TestMethod]
-    public void Advance_Should_Execute_Pending_Player_Choice_On_Next_Advance()
+    public void Advance_Should_Request_Target_Selection_After_Player_Chooses_Single_Target_Action()
     {
         IBattleRuntime runtime = CreateRuntime(
             new ScriptedBattleFlow(
@@ -47,7 +48,55 @@ public sealed class BattleRuntimeTests
             CreateFixedResolver());
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" }));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: null));
+
+        runtime.Advance();
+
+        BattleRuntimeView view = runtime.GetView();
+
+        Assert.IsNotNull(view.InputRequest);
+        Assert.AreEqual("hero", view.InputRequest.ActorId);
+        Assert.AreEqual(BattleMenuContextKind.TargetSelection, view.InputRequest.CurrentContext.Kind);
+        Assert.IsTrue(view.InputRequest.RequiresTargetSelection);
+        Assert.IsNotNull(view.InputRequest.TargetSelection);
+        Assert.AreEqual(BattleTargetMode.SingleTarget, view.InputRequest.TargetSelection.TargetMode);
+        Assert.AreEqual(0, view.Occurrences.Count);
+        Assert.IsNull(view.Result);
+    }
+
+    [TestMethod]
+    public void Advance_Should_Execute_Pending_Player_Choice_After_Target_Selection_Is_Completed()
+    {
+        IBattleRuntime runtime = CreateRuntime(
+            new ScriptedBattleFlow(
+            [
+                new BattleFlowStep(true, "hero")
+            ]),
+            new AlwaysAttackEnemyActionChooser(),
+            CreateFixedResolver());
+
+        runtime.Advance();
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: null));
+
+        runtime.Advance();
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: new[] { "slime_1" }));
+
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -74,7 +123,22 @@ public sealed class BattleRuntimeTests
             enemyHp: 5);
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" }));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: null));
+
+        runtime.Advance();
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: new[] { "slime_1" }));
+
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -96,6 +160,7 @@ public sealed class BattleRuntimeTests
             CreateFixedResolver(),
             heroHp: 5);
 
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -121,7 +186,14 @@ public sealed class BattleRuntimeTests
                 123));
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Escape, null, null));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Escape,
+            actionId: null,
+            targetMode: BattleTargetMode.None,
+            targetIds: null));
+
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -146,7 +218,14 @@ public sealed class BattleRuntimeTests
                 123));
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Escape, null, null));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Escape,
+            actionId: null,
+            targetMode: BattleTargetMode.None,
+            targetIds: null));
+
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -167,7 +246,14 @@ public sealed class BattleRuntimeTests
             new DefaultBattleActionResolver());
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Wait, null, null));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Wait,
+            actionId: null,
+            targetMode: BattleTargetMode.None,
+            targetIds: null));
+
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -187,7 +273,14 @@ public sealed class BattleRuntimeTests
             CreateFixedResolver());
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Defend, null, null));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Defend,
+            actionId: null,
+            targetMode: BattleTargetMode.None,
+            targetIds: null));
+
+        runtime.Advance();
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
@@ -205,7 +298,11 @@ public sealed class BattleRuntimeTests
             CreateFixedResolver());
 
         InvalidOperationException ex = Assert.ThrowsException<InvalidOperationException>(
-            () => runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" })));
+            () => runtime.SubmitPlayerChoice(new BattleActionChoice(
+                actionKind: BattleActionKind.Attack,
+                actionId: null,
+                targetMode: BattleTargetMode.SingleTarget,
+                targetIds: new[] { "slime_1" })));
 
         Assert.AreEqual("The runtime is not currently requesting player input.", ex.Message);
     }
@@ -239,7 +336,22 @@ public sealed class BattleRuntimeTests
             enemyHp: 5);
 
         runtime.Advance();
-        runtime.SubmitPlayerChoice(new BattleActionChoice(BattleActionKind.Attack, null, new[] { "slime_1" }));
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: null));
+
+        runtime.Advance();
+
+        runtime.SubmitPlayerChoice(new BattleActionChoice(
+            actionKind: BattleActionKind.Attack,
+            actionId: null,
+            targetMode: BattleTargetMode.SingleTarget,
+            targetIds: new[] { "slime_1" }));
+
+        runtime.Advance();
         runtime.Advance();
 
         Assert.IsNotNull(runtime.GetView().Result);

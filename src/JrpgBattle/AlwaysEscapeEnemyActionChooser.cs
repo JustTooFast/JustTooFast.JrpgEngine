@@ -33,6 +33,7 @@ public sealed class AlwaysEscapeEnemyActionChooser : IEnemyActionChooser
         return new BattleActionChoice(
             actionKind: BattleActionKind.Escape,
             actionId: null,
+            targetMode: BattleTargetMode.None,
             targetIds: null);
     }
 }
