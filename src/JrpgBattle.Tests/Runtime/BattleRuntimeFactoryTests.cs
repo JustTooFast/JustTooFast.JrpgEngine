@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 using System;
+using System.Collections.Generic;
 using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
@@ -53,7 +54,7 @@ public sealed class BattleRuntimeFactoryTests
     [TestMethod]
     public void Create_Should_Throw_When_FlowFactory_Returns_Null()
     {
-        var factory = new BattleRuntimeFactory(
+        BattleRuntimeFactory factory = new(
             flowFactory: () => null!,
             enemyActionChooserFactory: () => new AlwaysAttackEnemyActionChooser(),
             actionResolverFactory: () => CreateFixedResolver());
@@ -99,11 +100,65 @@ public sealed class BattleRuntimeFactoryTests
         return new BattleDefinition(
             partyActors:
             [
-                new BattleActorDefinition("hero", "Hero", BattleTeam.Party, 10)
+                new BattleActorDefinition(
+                    id: "hero",
+                    name: "Hero",
+                    team: BattleTeam.Party,
+                    controlKind: BattleActorControlKind.Player,
+                    currentHp: 10,
+                    maxHp: 10,
+                    allowedActions:
+                    [
+                        new BattleActionDefinition(BattleActionKind.Attack, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Defend, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Item, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Escape, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Wait, BattleExtendedData.Empty),
+                    ],
+                    spells: Array.Empty<BattleAbilityDefinition>(),
+                    skills: Array.Empty<BattleAbilityDefinition>(),
+                    automatedBehavior: null,
+                    extendedData: BattleExtendedData.Empty)
             ],
             enemyActors:
             [
-                new BattleActorDefinition("slime", "Slime", BattleTeam.Enemy, 10)
+                new BattleActorDefinition(
+                    id: "slime",
+                    name: "Slime",
+                    team: BattleTeam.Enemy,
+                    controlKind: BattleActorControlKind.Automated,
+                    currentHp: 10,
+                    maxHp: 10,
+                    allowedActions:
+                    [
+                        new BattleActionDefinition(BattleActionKind.Attack, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Wait, BattleExtendedData.Empty),
+                    ],
+                    spells: Array.Empty<BattleAbilityDefinition>(),
+                    skills: Array.Empty<BattleAbilityDefinition>(),
+                    automatedBehavior: new BattleActorBehaviorDefinition(
+                        aggression: BattleBehaviorBand.Medium,
+                        selfPreservation: BattleBehaviorBand.Low,
+                        supportiveness: BattleBehaviorBand.Low,
+                        opportunism: BattleBehaviorBand.Low,
+                        focus: BattleBehaviorBand.Low),
+                    extendedData: BattleExtendedData.Empty)
+            ],
+            configuration: new BattleConfiguration(
+                startingTeam: BattleTeam.Party,
+                openingAdvantage: BattleOpeningAdvantage.None,
+                canEscape: true,
+                extendedData: BattleExtendedData.Empty),
+            teamDefinitions:
+            [
+                new BattleTeamDefinition(
+                    team: BattleTeam.Party,
+                    items: Array.Empty<BattleAbilityDefinition>(),
+                    extendedData: BattleExtendedData.Empty),
+                new BattleTeamDefinition(
+                    team: BattleTeam.Enemy,
+                    items: Array.Empty<BattleAbilityDefinition>(),
+                    extendedData: BattleExtendedData.Empty),
             ]);
     }
 

@@ -372,11 +372,65 @@ public sealed class BattleRuntimeTests
         BattleDefinition definition = new(
             partyActors:
             [
-                new BattleActorDefinition("hero", "Hero", BattleTeam.Party, heroHp)
+                new BattleActorDefinition(
+                    id: "hero",
+                    name: "Hero",
+                    team: BattleTeam.Party,
+                    controlKind: BattleActorControlKind.Player,
+                    currentHp: heroHp,
+                    maxHp: 20,
+                    allowedActions:
+                    [
+                        new BattleActionDefinition(BattleActionKind.Attack, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Defend, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Item, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Escape, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Wait, BattleExtendedData.Empty),
+                    ],
+                    spells: Array.Empty<BattleAbilityDefinition>(),
+                    skills: Array.Empty<BattleAbilityDefinition>(),
+                    automatedBehavior: null,
+                    extendedData: BattleExtendedData.Empty)
             ],
             enemyActors:
             [
-                new BattleActorDefinition("slime_1", "Slime 1", BattleTeam.Enemy, enemyHp)
+                new BattleActorDefinition(
+                    id: "slime_1",
+                    name: "Slime 1",
+                    team: BattleTeam.Enemy,
+                    controlKind: BattleActorControlKind.Automated,
+                    currentHp: enemyHp,
+                    maxHp: 10,
+                    allowedActions:
+                    [
+                        new BattleActionDefinition(BattleActionKind.Attack, BattleExtendedData.Empty),
+                        new BattleActionDefinition(BattleActionKind.Wait, BattleExtendedData.Empty),
+                    ],
+                    spells: Array.Empty<BattleAbilityDefinition>(),
+                    skills: Array.Empty<BattleAbilityDefinition>(),
+                    automatedBehavior: new BattleActorBehaviorDefinition(
+                        aggression: BattleBehaviorBand.Medium,
+                        selfPreservation: BattleBehaviorBand.Low,
+                        supportiveness: BattleBehaviorBand.Low,
+                        opportunism: BattleBehaviorBand.Low,
+                        focus: BattleBehaviorBand.Low),
+                    extendedData: BattleExtendedData.Empty)
+            ],
+            configuration: new BattleConfiguration(
+                startingTeam: BattleTeam.Party,
+                openingAdvantage: BattleOpeningAdvantage.None,
+                canEscape: true,
+                extendedData: BattleExtendedData.Empty),
+            teamDefinitions:
+            [
+                new BattleTeamDefinition(
+                    team: BattleTeam.Party,
+                    items: Array.Empty<BattleAbilityDefinition>(),
+                    extendedData: BattleExtendedData.Empty),
+                new BattleTeamDefinition(
+                    team: BattleTeam.Enemy,
+                    items: Array.Empty<BattleAbilityDefinition>(),
+                    extendedData: BattleExtendedData.Empty),
             ]);
 
         return new BattleRuntime(

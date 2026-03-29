@@ -15,6 +15,7 @@ public sealed class BattleRuntime : IBattleRuntime
     private readonly IEnemyActionChooser _enemyActionChooser;
     private readonly IBattleActionResolver _actionResolver;
     private readonly BattleRuntimeState _runtimeState;
+    private readonly IReadOnlyDictionary<string, BattleActorDefinition> _actorDefinitions;
 
     private PendingExecution? _pendingExecution;
     private PendingTargetSelection? _pendingTargetSelection;
@@ -34,13 +35,20 @@ public sealed class BattleRuntime : IBattleRuntime
         _enemyActionChooser = enemyActionChooser ?? throw new ArgumentNullException(nameof(enemyActionChooser));
         _actionResolver = actionResolver ?? throw new ArgumentNullException(nameof(actionResolver));
 
-        var actors = definition.PartyActors
+        List<BattleActorDefinition> actorDefinitions = definition.PartyActors
             .Concat(definition.EnemyActors)
+            .ToList();
+
+        _actorDefinitions = actorDefinitions.ToDictionary(
+            static actor => actor.Id,
+            StringComparer.Ordinal);
+
+        var actors = actorDefinitions
             .Select(c => new BattleActorState(
                 id: c.Id,
                 name: c.Name,
                 team: c.Team,
-                currentHp: c.MaxHp,
+                currentHp: c.CurrentHp,
                 maxHp: c.MaxHp))
             .ToList();
 
@@ -109,24 +117,25 @@ public sealed class BattleRuntime : IBattleRuntime
         }
 
         BattleActorState actor = FindActor(flowStep.ReadyActorId);
+        BattleActorDefinition actorDefinition = FindActorDefinition(actor.Id);
 
         if (actor.IsDefeated)
         {
             return;
         }
 
-        if (actor.Team == BattleTeam.Party)
+        if (actorDefinition.ControlKind == BattleActorControlKind.Player)
         {
             _runtimeState.SetInputRequest(CreateRootMenu(actor.Id));
             return;
         }
 
-        BattleActionChoice enemyChoice =
+        BattleActionChoice automatedChoice =
             _enemyActionChooser.ChooseAction(_runtimeState.BattleState, actor.Id);
 
-        ValidateChosenEnemyAction(actor.Id, enemyChoice);
+        ValidateChosenEnemyAction(actor.Id, automatedChoice);
 
-        StagePendingExecution(actor.Id, enemyChoice);
+        StagePendingExecution(actor.Id, automatedChoice);
     }
 
     public void SubmitPlayerChoice(BattleActionChoice choice)
@@ -648,6 +657,21 @@ public sealed class BattleRuntime : IBattleRuntime
     {
         return _runtimeState.BattleState.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' was not found.");
+    }
+
+    private BattleActorDefinition FindActorDefinition(string actorId)
+    {
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
+        }
+
+        if (!_actorDefinitions.TryGetValue(actorId, out BattleActorDefinition? actorDefinition))
+        {
+            throw new InvalidOperationException($"Actor definition '{actorId}' was not found.");
+        }
+
+        return actorDefinition;
     }
 
     private void FinalizeBattleResultIfNeeded()
