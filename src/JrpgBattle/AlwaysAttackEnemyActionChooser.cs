@@ -10,17 +10,15 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
 {
-    public BattleActionChoice ChooseAction(BattleState state, string actorId)
+    public BattleActionChoice ChooseAction(BattleChooserContext context)
     {
-        if (state is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(state));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
+        BattleState state = context.State;
+        string actorId = context.ActorId;
 
         BattleActorState actor = state.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
@@ -45,7 +43,7 @@ public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
                 actionKind: BattleActionKind.Attack,
                 actionId: null,
                 targetMode: BattleTargetMode.None,
-                targetIds: Array.Empty<string>());
+                targetIds: null);
         }
 
         return new BattleActionChoice(

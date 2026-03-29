@@ -11,9 +11,11 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 public sealed record BattleFlowState
 {
     public BattleFlowState(
+        BattleConfiguration configuration,
         BattleState battleState,
         IReadOnlyDictionary<string, BattleFlowActorState> actorStates)
     {
+        Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         BattleState = battleState ?? throw new ArgumentNullException(nameof(battleState));
 
         if (actorStates is null)
@@ -55,6 +57,8 @@ public sealed record BattleFlowState
         ActorStates = new ReadOnlyDictionary<string, BattleFlowActorState>(
             new Dictionary<string, BattleFlowActorState>(actorStates, StringComparer.Ordinal));
     }
+
+    public BattleConfiguration Configuration { get; }
 
     public BattleState BattleState { get; }
 

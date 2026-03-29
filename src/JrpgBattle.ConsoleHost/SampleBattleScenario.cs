@@ -111,7 +111,12 @@ public static class SampleBattleScenario
                 startingTeam: BattleTeam.Party,
                 openingAdvantage: BattleOpeningAdvantage.None,
                 canEscape: true,
-                extendedData: BattleExtendedData.Empty),
+                extendedData: new BattleExtendedData(
+                    [
+                        new BattleExtendedDataEntry(
+                            EscapeChanceBattleActionDecorator.EscapeSuccessChanceKey,
+                            "0.75")
+                    ])),
             teamDefinitions: new List<BattleTeamDefinition>
             {
                 new(

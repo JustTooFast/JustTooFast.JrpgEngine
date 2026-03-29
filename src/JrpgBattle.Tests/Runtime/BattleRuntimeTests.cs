@@ -182,8 +182,8 @@ public sealed class BattleRuntimeTests
             new AlwaysAttackEnemyActionChooser(),
             new EscapeChanceBattleActionDecorator(
                 CreateFixedResolver(),
-                1.0,
-                123));
+                seed: 123),
+            escapeSuccessChance: 1.0);
 
         runtime.Advance();
 
@@ -214,8 +214,8 @@ public sealed class BattleRuntimeTests
             new AlwaysAttackEnemyActionChooser(),
             new EscapeChanceBattleActionDecorator(
                 CreateFixedResolver(),
-                0.0,
-                123));
+                seed: 123),
+            escapeSuccessChance: 0.0);
 
         runtime.Advance();
 
@@ -367,7 +367,8 @@ public sealed class BattleRuntimeTests
         IEnemyActionChooser enemyActionChooser,
         IBattleActionResolver resolver,
         int heroHp = 20,
-        int enemyHp = 10)
+        int enemyHp = 10,
+        double escapeSuccessChance = 0.75)
     {
         BattleDefinition definition = new(
             partyActors:
@@ -420,7 +421,12 @@ public sealed class BattleRuntimeTests
                 startingTeam: BattleTeam.Party,
                 openingAdvantage: BattleOpeningAdvantage.None,
                 canEscape: true,
-                extendedData: BattleExtendedData.Empty),
+                extendedData: new BattleExtendedData(
+                [
+                    new BattleExtendedDataEntry(
+                        EscapeChanceBattleActionDecorator.EscapeSuccessChanceKey,
+                        escapeSuccessChance.ToString("0.0###############", System.Globalization.CultureInfo.InvariantCulture))
+                ])),
             teamDefinitions:
             [
                 new BattleTeamDefinition(

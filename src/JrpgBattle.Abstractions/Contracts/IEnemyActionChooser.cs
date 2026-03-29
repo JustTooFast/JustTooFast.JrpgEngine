@@ -7,5 +7,5 @@ namespace JustTooFast.JrpgBattle.Abstractions.Contracts;
 
 public interface IEnemyActionChooser
 {
-    BattleActionChoice ChooseAction(BattleState state, string actorId);
+    BattleActionChoice ChooseAction(BattleChooserContext context);
 }

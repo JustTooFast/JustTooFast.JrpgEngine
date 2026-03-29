@@ -17,17 +17,15 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
         _random = new Random(seed);
     }
 
-    public BattleActionChoice ChooseAction(BattleState state, string actorId)
+    public BattleActionChoice ChooseAction(BattleChooserContext context)
     {
-        if (state is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(state));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
+        BattleState state = context.State;
+        string actorId = context.ActorId;
 
         BattleActorState actor = state.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
@@ -36,6 +34,11 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
         {
             throw new InvalidOperationException("Actor is defeated.");
         }
+
+        BattleActorDefinition actorDefinition = context.Definition.PartyActors
+            .Concat(context.Definition.EnemyActors)
+            .FirstOrDefault(a => a.Id == actorId)
+            ?? throw new InvalidOperationException($"Actor definition '{actorId}' not found.");
 
         BattleTeam targetTeam = actor.Team == BattleTeam.Party
             ? BattleTeam.Enemy
@@ -46,10 +49,34 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
             .Select(c => c.Id)
             .ToArray();
 
-        bool canAttack = availableTargetIds.Length > 0;
-        bool chooseAttack = canAttack && _random.Next(2) == 0;
+        bool canAttack = actorDefinition.AllowedActions.Any(a => a.ActionKind == BattleActionKind.Attack)
+            && availableTargetIds.Length > 0;
 
-        if (chooseAttack)
+        bool canDefend = actorDefinition.AllowedActions.Any(a => a.ActionKind == BattleActionKind.Defend);
+
+        if (canAttack && canDefend)
+        {
+            bool chooseAttack = _random.Next(2) == 0;
+
+            if (chooseAttack)
+            {
+                string targetId = availableTargetIds[_random.Next(availableTargetIds.Length)];
+
+                return new BattleActionChoice(
+                    actionKind: BattleActionKind.Attack,
+                    actionId: null,
+                    targetMode: BattleTargetMode.SingleTarget,
+                    targetIds: new[] { targetId });
+            }
+
+            return new BattleActionChoice(
+                actionKind: BattleActionKind.Defend,
+                actionId: null,
+                targetMode: BattleTargetMode.None,
+                targetIds: null);
+        }
+
+        if (canAttack)
         {
             string targetId = availableTargetIds[_random.Next(availableTargetIds.Length)];
 
@@ -60,10 +87,25 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
                 targetIds: new[] { targetId });
         }
 
-        return new BattleActionChoice(
-            actionKind: BattleActionKind.Defend,
-            actionId: null,
-            targetMode: BattleTargetMode.None,
-            targetIds: null);
+        if (canDefend)
+        {
+            return new BattleActionChoice(
+                actionKind: BattleActionKind.Defend,
+                actionId: null,
+                targetMode: BattleTargetMode.None,
+                targetIds: null);
+        }
+
+        if (actorDefinition.AllowedActions.Any(a => a.ActionKind == BattleActionKind.Wait))
+        {
+            return new BattleActionChoice(
+                actionKind: BattleActionKind.Wait,
+                actionId: null,
+                targetMode: BattleTargetMode.None,
+                targetIds: null);
+        }
+
+        throw new InvalidOperationException(
+            $"Actor '{actorId}' has no supported allowed actions for {nameof(RandomEnemyActionChooser)}.");
     }
 }

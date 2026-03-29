@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
 
-namespace JustTooFast.JrpgBattle;
+namespace JustTooFast.JrpgBattle.ConsoleHost;
 
 public sealed class RandomDamageBattleActionDecorator : IBattleActionResolver
 {
@@ -46,26 +46,16 @@ public sealed class RandomDamageBattleActionDecorator : IBattleActionResolver
         _random = new Random(seed);
     }
 
-    public BattleResolution Resolve(BattleState state, string actorId, BattleActionChoice action)
+    public BattleResolution Resolve(BattleResolverContext context)
     {
-        if (state is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(state));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
+        BattleResolution inner = _innerResolver.Resolve(context);
 
-        if (action is null)
-        {
-            throw new ArgumentNullException(nameof(action));
-        }
-
-        BattleResolution inner = _innerResolver.Resolve(state, actorId, action);
-
-        if (action.ActionKind != BattleActionKind.Attack)
+        if (context.Action.ActionKind != BattleActionKind.Attack)
         {
             return inner;
         }

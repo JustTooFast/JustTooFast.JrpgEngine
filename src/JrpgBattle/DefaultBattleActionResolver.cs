@@ -11,22 +11,16 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class DefaultBattleActionResolver : IBattleActionResolver
 {
-    public BattleResolution Resolve(BattleState state, string actorId, BattleActionChoice action)
+    public BattleResolution Resolve(BattleResolverContext context)
     {
-        if (state is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(state));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
-
-        if (action is null)
-        {
-            throw new ArgumentNullException(nameof(action));
-        }
+        BattleState state = context.State;
+        string actorId = context.ActorId;
+        BattleActionChoice action = context.Action;
 
         BattleActorState actor = state.Actors.FirstOrDefault(c => c.Id == actorId)
             ?? throw new InvalidOperationException($"Actor '{actorId}' not found.");
@@ -65,7 +59,6 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
         {
             BattleActorState? target = state.Actors.FirstOrDefault(c => c.Id == targetId);
 
-            // Resolution-time invalid target handling is graceful no-op/fizzle, not exception.
             if (target is null)
             {
                 continue;
@@ -97,9 +90,6 @@ public sealed class DefaultBattleActionResolver : IBattleActionResolver
 
     private static BattleResolution ResolveEscape()
     {
-        // Base resolver does not decide escape outcome.
-        // Escape-specific decorators may append EscapeSucceededOperation
-        // or EscapeFailedOperation deterministically.
         return new BattleResolution(Array.Empty<BattleOperation>());
     }
 

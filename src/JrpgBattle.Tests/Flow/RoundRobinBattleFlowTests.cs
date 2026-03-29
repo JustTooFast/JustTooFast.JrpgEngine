@@ -119,6 +119,18 @@ public sealed class RoundRobinBattleFlowTests
                 preventsActing: preventsActing);
         }
 
-        return new BattleFlowState(battleState, actorStates);
+        return new BattleFlowState(
+            configuration: CreateConfiguration(),
+            battleState: battleState,
+            actorStates: actorStates);
+    }
+
+    private static BattleConfiguration CreateConfiguration()
+    {
+        return new BattleConfiguration(
+            startingTeam: BattleTeam.Party,
+            openingAdvantage: BattleOpeningAdvantage.None,
+            canEscape: true,
+            extendedData: BattleExtendedData.Empty);
     }
 }

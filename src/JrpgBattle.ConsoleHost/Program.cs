@@ -23,7 +23,6 @@ public static class Program
                         maxDamage: 7,
                         missChance: 0.10,
                         seed: Environment.TickCount),
-                    escapeSuccessChance: 0.75,
                     seed: Environment.TickCount));
 
         IBattleRewardApplier battleRewardApplier = new ConsoleBattleRewardApplier();

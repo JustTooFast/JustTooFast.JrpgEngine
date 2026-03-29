@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using JustTooFast.JrpgBattle;
 using JustTooFast.JrpgBattle.Abstractions.Contracts;
 using JustTooFast.JrpgBattle.Abstractions.Models;
+using JustTooFast.JrpgBattle.Tests.Fakes;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace JustTooFast.JrpgBattle.Tests.Runtime;

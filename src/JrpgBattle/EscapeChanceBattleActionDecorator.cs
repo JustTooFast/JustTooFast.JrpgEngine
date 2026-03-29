@@ -10,51 +10,34 @@ namespace JustTooFast.JrpgBattle;
 
 public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
 {
+    public const string EscapeSuccessChanceKey = "escape.success-chance";
+
     private readonly IBattleActionResolver _innerResolver;
-    private readonly double _escapeSuccessChance;
     private readonly Random _random;
 
     public EscapeChanceBattleActionDecorator(
         IBattleActionResolver innerResolver,
-        double escapeSuccessChance,
         int seed)
     {
         _innerResolver = innerResolver ?? throw new ArgumentNullException(nameof(innerResolver));
-
-        if (escapeSuccessChance < 0.0 || escapeSuccessChance > 1.0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(escapeSuccessChance),
-                "Escape success chance must be between 0.0 and 1.0.");
-        }
-
-        _escapeSuccessChance = escapeSuccessChance;
         _random = new Random(seed);
     }
 
-    public BattleResolution Resolve(BattleState state, string actorId, BattleActionChoice action)
+    public BattleResolution Resolve(BattleResolverContext context)
     {
-        if (state is null)
+        if (context is null)
         {
-            throw new ArgumentNullException(nameof(state));
+            throw new ArgumentNullException(nameof(context));
         }
 
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
+        BattleResolution inner = _innerResolver.Resolve(context);
 
-        if (action is null)
-        {
-            throw new ArgumentNullException(nameof(action));
-        }
-
-        BattleResolution inner = _innerResolver.Resolve(state, actorId, action);
-
-        if (action.ActionKind != BattleActionKind.Escape)
+        if (context.Action.ActionKind != BattleActionKind.Escape)
         {
             return inner;
         }
+
+        double escapeSuccessChance = GetEscapeSuccessChance(context.Definition.Configuration);
 
         var operations = new List<BattleOperation>(inner.Operations.Count + 1);
 
@@ -69,10 +52,43 @@ public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
         }
 
         operations.Add(
-            _random.NextDouble() < _escapeSuccessChance
+            _random.NextDouble() < escapeSuccessChance
                 ? new EscapeSucceededOperation()
                 : new EscapeFailedOperation());
 
         return new BattleResolution(operations);
+    }
+
+    private static double GetEscapeSuccessChance(BattleConfiguration configuration)
+    {
+        if (configuration is null)
+        {
+            throw new ArgumentNullException(nameof(configuration));
+        }
+
+        if (!configuration.CanEscape)
+        {
+            return 0.0;
+        }
+
+        if (!configuration.ExtendedData.TryGetValue(EscapeSuccessChanceKey, out string? value))
+        {
+            throw new InvalidOperationException(
+                $"Battle configuration extended data is missing required key '{EscapeSuccessChanceKey}'.");
+        }
+
+        if (!double.TryParse(value, out double escapeSuccessChance))
+        {
+            throw new InvalidOperationException(
+                $"Battle configuration extended data key '{EscapeSuccessChanceKey}' must contain a valid double value.");
+        }
+
+        if (escapeSuccessChance < 0.0 || escapeSuccessChance > 1.0)
+        {
+            throw new InvalidOperationException(
+                $"Battle configuration extended data key '{EscapeSuccessChanceKey}' must be between 0.0 and 1.0.");
+        }
+
+        return escapeSuccessChance;
     }
 }
