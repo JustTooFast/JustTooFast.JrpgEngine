@@ -11,7 +11,7 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 public sealed record BattleRuntimeView
 {
     public BattleRuntimeView(
-        BattleState battleState,
+        BattleStateView battleState,
         BattleInputRequest? inputRequest,
         IReadOnlyList<BattleOccurrence> occurrences,
         BattleResult? result)
@@ -37,7 +37,7 @@ public sealed record BattleRuntimeView
         Result = result;
     }
 
-    public BattleState BattleState { get; }
+    public BattleStateView BattleState { get; }
 
     public BattleInputRequest? InputRequest { get; }
 

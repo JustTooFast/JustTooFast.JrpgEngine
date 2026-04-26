@@ -12,10 +12,18 @@ namespace JustTooFast.JrpgBattle;
 internal sealed class BattleRuntimeState
 {
     private readonly IReadOnlyDictionary<string, BattleActorRuntimeState> _actorStates;
+    private readonly Dictionary<string, BattleExtendedData> _actorExtendedData;
 
-    public BattleRuntimeState(BattleState battleState)
+    public BattleRuntimeState(
+        BattleState battleState,
+        IReadOnlyDictionary<string, BattleExtendedData> actorExtendedData)
     {
         BattleState = battleState ?? throw new ArgumentNullException(nameof(battleState));
+
+        if (actorExtendedData is null)
+        {
+            throw new ArgumentNullException(nameof(actorExtendedData));
+        }
 
         Dictionary<string, BattleActorRuntimeState> actorStates = battleState.Actors
             .ToDictionary(
@@ -23,7 +31,30 @@ internal sealed class BattleRuntimeState
                 static actor => new BattleActorRuntimeState(actor.Id),
                 StringComparer.Ordinal);
 
+        string[] battleActorIds = battleState.Actors
+            .Select(static actor => actor.Id)
+            .OrderBy(static id => id, StringComparer.Ordinal)
+            .ToArray();
+
+        string[] extendedDataActorIds = actorExtendedData.Keys
+            .OrderBy(static id => id, StringComparer.Ordinal)
+            .ToArray();
+
+        if (battleActorIds.Length != extendedDataActorIds.Length ||
+            !battleActorIds.SequenceEqual(extendedDataActorIds, StringComparer.Ordinal))
+        {
+            throw new ArgumentException(
+                "Actor extended data must contain exactly one entry for each battle actor.",
+                nameof(actorExtendedData));
+        }
+
+        if (actorExtendedData.Any(static kvp => kvp.Value is null))
+        {
+            throw new ArgumentException("Actor extended data cannot contain null values.", nameof(actorExtendedData));
+        }
+
         _actorStates = new ReadOnlyDictionary<string, BattleActorRuntimeState>(actorStates);
+        _actorExtendedData = new Dictionary<string, BattleExtendedData>(actorExtendedData, StringComparer.Ordinal);
 
         CurrentInputRequest = null;
         PendingPlayerChoice = null;
@@ -62,6 +93,41 @@ internal sealed class BattleRuntimeState
         }
 
         return actorState;
+    }
+
+    public BattleExtendedData GetActorExtendedData(string actorId)
+    {
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
+        }
+
+        if (!_actorExtendedData.TryGetValue(actorId, out BattleExtendedData? extendedData))
+        {
+            throw new InvalidOperationException($"Actor extended data for '{actorId}' was not found.");
+        }
+
+        return extendedData;
+    }
+
+    public void SetActorExtendedData(string actorId, BattleExtendedData extendedData)
+    {
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
+        }
+
+        if (extendedData is null)
+        {
+            throw new ArgumentNullException(nameof(extendedData));
+        }
+
+        if (!_actorExtendedData.ContainsKey(actorId))
+        {
+            throw new InvalidOperationException($"Actor extended data for '{actorId}' was not found.");
+        }
+
+        _actorExtendedData[actorId] = extendedData;
     }
 
     public void SetBattleState(BattleState state)

@@ -8,19 +8,20 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 public sealed record BattleAbilityDefinition
 {
     public BattleAbilityDefinition(
-        string id,
-        string name,
+        string actionId,
+        string displayText,
+        string? category,
         BattleTargetMode targetMode,
         BattleExtendedData extendedData)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(actionId))
         {
-            throw new ArgumentException("Spell id is required.", nameof(id));
+            throw new ArgumentException("Action id is required.", nameof(actionId));
         }
 
-        if (string.IsNullOrWhiteSpace(name))
+        if (string.IsNullOrWhiteSpace(displayText))
         {
-            throw new ArgumentException("Spell name is required.", nameof(name));
+            throw new ArgumentException("Display text is required.", nameof(displayText));
         }
 
         if (!Enum.IsDefined(targetMode))
@@ -33,15 +34,18 @@ public sealed record BattleAbilityDefinition
             throw new ArgumentNullException(nameof(extendedData));
         }
 
-        Id = id;
-        Name = name;
+        ActionId = actionId;
+        DisplayText = displayText;
+        Category = string.IsNullOrWhiteSpace(category) ? null : category;
         TargetMode = targetMode;
         ExtendedData = extendedData;
     }
 
-    public string Id { get; }
+    public string ActionId { get; }
 
-    public string Name { get; }
+    public string DisplayText { get; }
+
+    public string? Category { get; }
 
     public BattleTargetMode TargetMode { get; }
 

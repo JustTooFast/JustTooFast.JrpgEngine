@@ -63,15 +63,13 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
                 string targetId = availableTargetIds[_random.Next(availableTargetIds.Length)];
 
                 return new BattleActionChoice(
-                    actionKind: BattleActionKind.Attack,
-                    actionId: null,
+                    actionId: "attack",
                     targetMode: BattleTargetMode.SingleTarget,
                     targetIds: new[] { targetId });
             }
 
             return new BattleActionChoice(
-                actionKind: BattleActionKind.Defend,
-                actionId: null,
+                actionId: "defend",
                 targetMode: BattleTargetMode.None,
                 targetIds: null);
         }
@@ -81,8 +79,7 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
             string targetId = availableTargetIds[_random.Next(availableTargetIds.Length)];
 
             return new BattleActionChoice(
-                actionKind: BattleActionKind.Attack,
-                actionId: null,
+                actionId: "attack",
                 targetMode: BattleTargetMode.SingleTarget,
                 targetIds: new[] { targetId });
         }
@@ -90,8 +87,7 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
         if (canDefend)
         {
             return new BattleActionChoice(
-                actionKind: BattleActionKind.Defend,
-                actionId: null,
+                actionId: "defend",
                 targetMode: BattleTargetMode.None,
                 targetIds: null);
         }
@@ -99,8 +95,7 @@ public sealed class RandomEnemyActionChooser : IEnemyActionChooser
         if (actorDefinition.AllowedActions.Any(a => a.ActionKind == BattleActionKind.Wait))
         {
             return new BattleActionChoice(
-                actionKind: BattleActionKind.Wait,
-                actionId: null,
+                actionId: "wait",
                 targetMode: BattleTargetMode.None,
                 targetIds: null);
         }

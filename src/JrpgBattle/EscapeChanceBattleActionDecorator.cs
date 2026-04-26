@@ -32,7 +32,7 @@ public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
 
         BattleResolution inner = _innerResolver.Resolve(context);
 
-        if (context.Action.ActionKind != BattleActionKind.Escape)
+        if (!string.Equals(context.Action.ActionId, "escape", StringComparison.Ordinal))
         {
             return inner;
         }
@@ -77,7 +77,11 @@ public sealed class EscapeChanceBattleActionDecorator : IBattleActionResolver
                 $"Battle configuration extended data is missing required key '{EscapeSuccessChanceKey}'.");
         }
 
-        if (!double.TryParse(value, out double escapeSuccessChance))
+        if (!double.TryParse(
+            value,
+            System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowThousands,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out double escapeSuccessChance))
         {
             throw new InvalidOperationException(
                 $"Battle configuration extended data key '{EscapeSuccessChanceKey}' must contain a valid double value.");

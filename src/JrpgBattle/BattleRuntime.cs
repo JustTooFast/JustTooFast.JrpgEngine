@@ -19,7 +19,6 @@ public sealed class BattleRuntime : IBattleRuntime
     private readonly IReadOnlyDictionary<string, BattleActorDefinition> _actorDefinitions;
 
     private PendingExecution? _pendingExecution;
-    private PendingTargetSelection? _pendingTargetSelection;
 
     public BattleRuntime(
         BattleDefinition definition,
@@ -54,13 +53,32 @@ public sealed class BattleRuntime : IBattleRuntime
                 maxHp: c.MaxHp))
             .ToList();
 
-        _runtimeState = new BattleRuntimeState(new BattleState(actors));
+        Dictionary<string, BattleExtendedData> actorExtendedData = actorDefinitions
+            .ToDictionary(
+                static actor => actor.Id,
+                static actor => actor.ExtendedData,
+                StringComparer.Ordinal);
+
+        _runtimeState = new BattleRuntimeState(
+            new BattleState(actors),
+            actorExtendedData);
     }
 
     public BattleRuntimeView GetView()
     {
+        BattleActorView[] actorViews = _runtimeState.BattleState.Actors
+            .Select(actor => new BattleActorView(
+                actorId: actor.Id,
+                displayName: actor.Name,
+                team: actor.Team,
+                currentHp: actor.CurrentHp,
+                maxHp: actor.MaxHp,
+                isDefeated: actor.IsDefeated,
+                extendedData: _runtimeState.GetActorExtendedData(actor.Id)))
+            .ToArray();
+
         return new BattleRuntimeView(
-            _runtimeState.BattleState,
+            new BattleStateView(actorViews),
             _runtimeState.CurrentInputRequest,
             _runtimeState.CurrentOccurrences,
             _runtimeState.Result);
@@ -93,13 +111,12 @@ public sealed class BattleRuntime : IBattleRuntime
 
             ValidateSubmittedChoice(actorId, submittedChoice);
 
-            if (_pendingTargetSelection is null)
-            {
-                HandleCommandSelection(actorId, submittedChoice);
-                return;
-            }
+            BattleInputAction selectedAction = FindRequestedAction(actorId, submittedChoice.ActionId);
 
-            HandleTargetSelection(actorId, submittedChoice);
+            _runtimeState.SetPendingPlayerChoice(null);
+            _runtimeState.SetInputRequest(null);
+
+            StagePendingExecution(actorId, selectedAction, submittedChoice.TargetIds);
             return;
         }
 
@@ -128,7 +145,7 @@ public sealed class BattleRuntime : IBattleRuntime
 
         if (actorDefinition.ControlKind == BattleActorControlKind.Player)
         {
-            _runtimeState.SetInputRequest(CreateRootMenu(actor.Id));
+            _runtimeState.SetInputRequest(CreateInputRequest(actor.Id));
             return;
         }
 
@@ -141,7 +158,136 @@ public sealed class BattleRuntime : IBattleRuntime
 
         ValidateChosenEnemyAction(actor.Id, automatedChoice);
 
-        StagePendingExecution(actor.Id, automatedChoice);
+        BattleInputAction automatedAction = FindAvailableAction(actor.Id, automatedChoice.ActionId);
+
+        StagePendingExecution(actor.Id, automatedAction, automatedChoice.TargetIds);
+    }
+
+    private BattleInputRequest CreateInputRequest(string actorId)
+    {
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            throw new ArgumentException("Actor id is required.", nameof(actorId));
+        }
+
+        BattleInputAction[] actions = BuildAvailableActions(actorId).ToArray();
+
+        return new BattleInputRequest(
+            actorId: actorId,
+            actions: actions);
+    }
+
+    private IEnumerable<BattleInputAction> BuildAvailableActions(string actorId)
+    {
+        BattleActorDefinition actorDefinition = FindActorDefinition(actorId);
+        BattleTeamDefinition teamDefinition = FindTeamDefinition(actorDefinition.Team);
+
+        foreach (BattleActionDefinition allowedAction in actorDefinition.AllowedActions)
+        {
+            if (ShouldExposeBuiltInAction(allowedAction))
+            {
+                yield return CreateBuiltInInputAction(allowedAction.ActionKind);
+            }
+        }
+
+        foreach (BattleAbilityDefinition spell in actorDefinition.Spells)
+        {
+            yield return new BattleInputAction(
+                actionId: spell.Id,
+                displayText: spell.Name,
+                actionKind: BattleActionKind.Magic,
+                category: null,
+                targetMode: spell.TargetMode,
+                isEnabled: true);
+        }
+
+        foreach (BattleAbilityDefinition skill in actorDefinition.Skills)
+        {
+            yield return new BattleInputAction(
+                actionId: skill.Id,
+                displayText: skill.Name,
+                actionKind: BattleActionKind.Skill,
+                category: null,
+                targetMode: skill.TargetMode,
+                isEnabled: true);
+        }
+
+        foreach (BattleAbilityDefinition item in teamDefinition.Items)
+        {
+            yield return new BattleInputAction(
+                actionId: item.Id,
+                displayText: item.Name,
+                actionKind: BattleActionKind.Item,
+                category: null,
+                targetMode: item.TargetMode,
+                isEnabled: true);
+        }
+    }
+
+    private bool ShouldExposeBuiltInAction(BattleActionDefinition actionDefinition)
+    {
+        if (actionDefinition is null)
+        {
+            throw new ArgumentNullException(nameof(actionDefinition));
+        }
+
+        if (actionDefinition.ActionKind == BattleActionKind.Escape && !_definition.Configuration.CanEscape)
+        {
+            return false;
+        }
+
+        return actionDefinition.ActionKind switch
+        {
+            BattleActionKind.Attack => true,
+            BattleActionKind.Defend => true,
+            BattleActionKind.Escape => true,
+            BattleActionKind.Wait => true,
+            BattleActionKind.Magic => false,
+            BattleActionKind.Skill => false,
+            BattleActionKind.Item => false,
+            _ => false
+        };
+    }
+
+    private static BattleInputAction CreateBuiltInInputAction(BattleActionKind actionKind)
+    {
+        return actionKind switch
+        {
+            BattleActionKind.Attack => new BattleInputAction(
+                actionId: "attack",
+                displayText: "Attack",
+                actionKind: BattleActionKind.Attack,
+                category: null,
+                targetMode: BattleTargetMode.SingleTarget,
+                isEnabled: true),
+
+            BattleActionKind.Defend => new BattleInputAction(
+                actionId: "defend",
+                displayText: "Defend",
+                actionKind: BattleActionKind.Defend,
+                category: null,
+                targetMode: BattleTargetMode.None,
+                isEnabled: true),
+
+            BattleActionKind.Escape => new BattleInputAction(
+                actionId: "escape",
+                displayText: "Escape",
+                actionKind: BattleActionKind.Escape,
+                category: null,
+                targetMode: BattleTargetMode.None,
+                isEnabled: true),
+
+            BattleActionKind.Wait => new BattleInputAction(
+                actionId: "wait",
+                displayText: "Wait",
+                actionKind: BattleActionKind.Wait,
+                category: null,
+                targetMode: BattleTargetMode.None,
+                isEnabled: true),
+
+            _ => throw new NotSupportedException(
+                $"Built-in input action creation is not supported for action kind '{actionKind}'.")
+        };
     }
 
     public void SubmitPlayerChoice(BattleActionChoice choice)
@@ -198,302 +344,12 @@ public sealed class BattleRuntime : IBattleRuntime
             actorStates: actorStates);
     }
 
-    private BattleInputRequest CreateRootMenu(string actorId)
-    {
-        if (string.IsNullOrWhiteSpace(actorId))
-        {
-            throw new ArgumentException("Actor id is required.", nameof(actorId));
-        }
-
-        BattleActorDefinition actorDefinition = FindActorDefinition(actorId);
-
-        var context = new BattleMenuContext(
-            contextId: "root",
-            kind: BattleMenuContextKind.RootCommand,
-            title: "Command");
-
-        List<BattleMenuOption> options = actorDefinition.AllowedActions
-            .Where(ShouldExposeRootAction)
-            .Select(CreateRootMenuOption)
-            .ToList();
-
-        return new BattleInputRequest(
-            actorId: actorId,
-            currentContext: context,
-            menuPath: new[] { context },
-            options: options,
-            targetSelection: null);
-    }
-
-    private bool ShouldExposeRootAction(BattleActionDefinition actionDefinition)
-    {
-        if (actionDefinition is null)
-        {
-            throw new ArgumentNullException(nameof(actionDefinition));
-        }
-
-        if (actionDefinition.ActionKind == BattleActionKind.Escape && !_definition.Configuration.CanEscape)
-        {
-            return false;
-        }
-
-        return actionDefinition.ActionKind switch
-        {
-            BattleActionKind.Attack => true,
-            BattleActionKind.Defend => true,
-            BattleActionKind.Escape => true,
-            BattleActionKind.Wait => true,
-
-            // Wave 2 will decide how to expose submenu-driven actions.
-            BattleActionKind.Magic => false,
-            BattleActionKind.Skill => false,
-            BattleActionKind.Item => false,
-
-            _ => false
-        };
-    }
-
-    private static BattleMenuOption CreateRootMenuOption(BattleActionDefinition actionDefinition)
-    {
-        if (actionDefinition is null)
-        {
-            throw new ArgumentNullException(nameof(actionDefinition));
-        }
-
-        return actionDefinition.ActionKind switch
-        {
-            BattleActionKind.Attack => new BattleMenuOption(
-                optionId: "attack",
-                label: "Attack",
-                kind: BattleMenuOptionKind.Action,
-                isEnabled: true,
-                actionKind: BattleActionKind.Attack,
-                actionId: null,
-                targetMode: BattleTargetMode.SingleTarget),
-
-            BattleActionKind.Defend => new BattleMenuOption(
-                optionId: "defend",
-                label: "Defend",
-                kind: BattleMenuOptionKind.Action,
-                isEnabled: true,
-                actionKind: BattleActionKind.Defend,
-                actionId: null,
-                targetMode: BattleTargetMode.None),
-
-            BattleActionKind.Escape => new BattleMenuOption(
-                optionId: "escape",
-                label: "Escape",
-                kind: BattleMenuOptionKind.Action,
-                isEnabled: true,
-                actionKind: BattleActionKind.Escape,
-                actionId: null,
-                targetMode: BattleTargetMode.None),
-
-            BattleActionKind.Wait => new BattleMenuOption(
-                optionId: "wait",
-                label: "Wait",
-                kind: BattleMenuOptionKind.Action,
-                isEnabled: true,
-                actionKind: BattleActionKind.Wait,
-                actionId: null,
-                targetMode: BattleTargetMode.None),
-
-            _ => throw new NotSupportedException(
-                $"Root menu exposure is not yet supported for action kind '{actionDefinition.ActionKind}'.")
-        };
-    }
-
-    private BattleInputRequest CreateTargetSelectionMenu(
+    private void StagePendingExecution(
         string actorId,
-        BattleActionChoice actionChoice)
+        BattleInputAction selectedAction,
+        IReadOnlyList<string>? targetIds)
     {
-        var rootContext = new BattleMenuContext(
-            contextId: "root",
-            kind: BattleMenuContextKind.RootCommand,
-            title: "Command");
-
-        var targetContext = new BattleMenuContext(
-            contextId: "target-selection",
-            kind: BattleMenuContextKind.TargetSelection,
-            title: "Target",
-            parentContextId: rootContext.ContextId,
-            actionKind: actionChoice.ActionKind,
-            actionId: actionChoice.ActionId);
-
-        var selectableTargets = BuildSelectableTargets(actionChoice);
-
-        var targetSelection = new BattleTargetSelectionState(
-            targetMode: actionChoice.TargetMode,
-            selectableTargets: selectableTargets);
-
-        var options = new List<BattleMenuOption>
-        {
-            new BattleMenuOption(
-                optionId: "back",
-                label: "Back",
-                kind: BattleMenuOptionKind.Back,
-                isEnabled: true,
-                actionKind: null,
-                actionId: null,
-                nextContextId: rootContext.ContextId,
-                targetMode: BattleTargetMode.None)
-        };
-
-        return new BattleInputRequest(
-            actorId: actorId,
-            currentContext: targetContext,
-            menuPath: new[] { rootContext, targetContext },
-            options: options,
-            targetSelection: targetSelection);
-    }
-
-    private IReadOnlyList<BattleSelectableTarget> BuildSelectableTargets(BattleActionChoice actionChoice)
-    {
-        IEnumerable<BattleActorState> targets = actionChoice.TargetMode switch
-        {
-            BattleTargetMode.SingleTarget when actionChoice.ActionKind == BattleActionKind.Attack =>
-                _runtimeState.BattleState.Actors.Where(a => a.Team == BattleTeam.Enemy),
-
-            BattleTargetMode.SingleTarget =>
-                _runtimeState.BattleState.Actors.Where(a => a.Team == BattleTeam.Enemy),
-
-            _ => throw new InvalidOperationException(
-                $"Target selection is not supported for target mode '{actionChoice.TargetMode}'.")
-        };
-
-        return targets
-            .Select(a => new BattleSelectableTarget(
-                actorId: a.Id,
-                label: a.Name,
-                isEnabled: !a.IsDefeated))
-            .ToList();
-    }
-
-    private void HandleCommandSelection(string actorId, BattleActionChoice choice)
-    {
-        ValidateChoiceAgainstMenu(choice);
-
-        _runtimeState.SetPendingPlayerChoice(null);
-
-        if (choice.TargetMode == BattleTargetMode.None)
-        {
-            _runtimeState.SetInputRequest(null);
-            StagePendingExecution(actorId, choice);
-            return;
-        }
-
-        if (choice.TargetMode == BattleTargetMode.SingleTarget)
-        {
-            _pendingTargetSelection = new PendingTargetSelection(actorId, choice);
-            _runtimeState.SetInputRequest(CreateTargetSelectionMenu(actorId, choice));
-            return;
-        }
-
-        throw new NotSupportedException(
-            $"Player target selection is not yet supported for target mode '{choice.TargetMode}'.");
-    }
-
-    private void HandleTargetSelection(string actorId, BattleActionChoice submittedChoice)
-    {
-        PendingTargetSelection pendingTargetSelection = _pendingTargetSelection
-            ?? throw new InvalidOperationException("No pending target selection exists.");
-
-        if (!string.Equals(pendingTargetSelection.ActorId, actorId, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Submitted target selection actor does not match the pending actor.");
-        }
-
-        ValidateTargetSelectionChoice(submittedChoice, pendingTargetSelection);
-
-        BattleActionChoice finalizedChoice = new BattleActionChoice(
-            actionKind: pendingTargetSelection.ActionKind,
-            actionId: pendingTargetSelection.ActionId,
-            targetMode: pendingTargetSelection.TargetMode,
-            targetIds: submittedChoice.TargetIds);
-
-        _pendingTargetSelection = null;
-        _runtimeState.SetPendingPlayerChoice(null);
-        _runtimeState.SetInputRequest(null);
-
-        StagePendingExecution(actorId, finalizedChoice);
-    }
-
-    private void ValidateChoiceAgainstMenu(BattleActionChoice choice)
-    {
-        BattleInputRequest request = _runtimeState.CurrentInputRequest
-            ?? throw new InvalidOperationException("No input request is active.");
-
-        BattleMenuOption? matchingOption = request.Options.FirstOrDefault(o =>
-            o.ActionKind == choice.ActionKind &&
-            string.Equals(o.ActionId, choice.ActionId, StringComparison.Ordinal));
-
-        if (matchingOption is null)
-        {
-            throw new InvalidOperationException("Submitted action does not exist in the current menu.");
-        }
-
-        if (!matchingOption.IsEnabled)
-        {
-            throw new InvalidOperationException("Submitted action is currently disabled.");
-        }
-
-        if (matchingOption.TargetMode != choice.TargetMode)
-        {
-            throw new InvalidOperationException("Submitted action target mode does not match menu definition.");
-        }
-    }
-
-    private void ValidateTargetSelectionChoice(
-        BattleActionChoice submittedChoice,
-        PendingTargetSelection pendingTargetSelection)
-    {
-        BattleInputRequest request = _runtimeState.CurrentInputRequest
-            ?? throw new InvalidOperationException("No input request is active.");
-
-        if (!request.RequiresTargetSelection || request.TargetSelection is null)
-        {
-            throw new InvalidOperationException("The current input request is not a target-selection request.");
-        }
-
-        if (submittedChoice.ActionKind != pendingTargetSelection.ActionKind)
-        {
-            throw new InvalidOperationException("Submitted target selection action kind does not match the pending action.");
-        }
-
-        if (!string.Equals(submittedChoice.ActionId, pendingTargetSelection.ActionId, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Submitted target selection action id does not match the pending action.");
-        }
-
-        if (submittedChoice.TargetMode != pendingTargetSelection.TargetMode)
-        {
-            throw new InvalidOperationException("Submitted target selection target mode does not match the pending action.");
-        }
-
-        if (submittedChoice.TargetIds is null || submittedChoice.TargetIds.Count != 1)
-        {
-            throw new InvalidOperationException("Submitted target selection must include exactly one target id.");
-        }
-
-        string targetId = submittedChoice.TargetIds[0];
-
-        BattleSelectableTarget? selectableTarget = request.TargetSelection.SelectableTargets
-            .FirstOrDefault(t => string.Equals(t.ActorId, targetId, StringComparison.Ordinal));
-
-        if (selectableTarget is null)
-        {
-            throw new InvalidOperationException("Submitted target does not exist in the current target-selection request.");
-        }
-
-        if (!selectableTarget.IsEnabled)
-        {
-            throw new InvalidOperationException("Submitted target is currently disabled.");
-        }
-    }
-
-    private void StagePendingExecution(string actorId, BattleActionChoice choice)
-    {
-        _pendingExecution = new PendingExecution(actorId, choice);
+        _pendingExecution = new PendingExecution(actorId, selectedAction, targetIds);
     }
 
     private void ApplyPendingExecution()
@@ -503,7 +359,42 @@ public sealed class BattleRuntime : IBattleRuntime
 
         _pendingExecution = null;
 
-        ExecuteAction(pending.ActorId, pending.Choice);
+        ExecuteAction(pending.ActorId, pending.Action, pending.TargetIds);
+    }
+
+    private void ExecuteAction(
+        string actorId,
+        BattleInputAction selectedAction,
+        IReadOnlyList<string>? targetIds)
+    {
+        var occurrences = new List<BattleOccurrence>();
+
+        occurrences.Add(new ActionStartedOccurrence(
+            actorId,
+            selectedAction.ActionKind,
+            selectedAction.ActionId));
+
+        BattleResolution resolution =
+            _actionResolver.Resolve(
+                new BattleResolverContext(
+                    definition: _definition,
+                    state: _runtimeState.BattleState,
+                    actorId: actorId,
+                    action: new BattleActionChoice(
+                        actionId: selectedAction.ActionId,
+                        targetMode: selectedAction.TargetMode,
+                        targetIds: targetIds)));
+
+        ApplyResolution(actorId, resolution, occurrences);
+
+        occurrences.Add(new ActionResolvedOccurrence(
+            actorId,
+            selectedAction.ActionKind,
+            selectedAction.ActionId));
+
+        FinalizeBattleResultIfNeeded();
+
+        _runtimeState.SetOccurrences(occurrences);
     }
 
     private void ValidateSubmittedChoice(string actorId, BattleActionChoice choice)
@@ -524,6 +415,84 @@ public sealed class BattleRuntime : IBattleRuntime
         {
             throw new InvalidOperationException("Submitted choice actor does not match the active input request.");
         }
+
+        BattleInputAction requestedAction = FindRequestedAction(actorId, choice.ActionId);
+
+        if (!requestedAction.IsEnabled)
+        {
+            throw new InvalidOperationException($"Submitted action '{choice.ActionId}' is currently disabled.");
+        }
+
+        if (requestedAction.TargetMode != choice.TargetMode)
+        {
+            throw new InvalidOperationException("Submitted action target mode does not match the input request.");
+        }
+
+        ValidateTargetIds(choice.TargetMode, choice.TargetIds, actorId);
+    }
+
+    private BattleInputAction FindRequestedAction(string actorId, string actionId)
+    {
+        if (_runtimeState.CurrentInputRequest is null)
+        {
+            throw new InvalidOperationException("No input request is active.");
+        }
+
+        if (!string.Equals(_runtimeState.CurrentInputRequest.ActorId, actorId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Requested actor does not match the active input request.");
+        }
+
+        BattleInputAction? action = _runtimeState.CurrentInputRequest.Actions
+            .FirstOrDefault(a => string.Equals(a.ActionId, actionId, StringComparison.Ordinal));
+
+        if (action is null)
+        {
+            throw new InvalidOperationException(
+                $"Submitted action '{actionId}' does not exist in the current input request.");
+        }
+
+        return action;
+    }
+
+    private static void ValidateTargetIds(
+        BattleTargetMode targetMode,
+        IReadOnlyList<string>? targetIds,
+        string actorId)
+    {
+        switch (targetMode)
+        {
+            case BattleTargetMode.None:
+                if (targetIds is not null && targetIds.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Actor '{actorId}' submitted unexpected target ids for a non-targeted action.");
+                }
+
+                break;
+
+            case BattleTargetMode.SingleTarget:
+                if (targetIds is null || targetIds.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"Actor '{actorId}' must provide exactly one target id for a single-target action.");
+                }
+
+                break;
+
+            case BattleTargetMode.AllAllies:
+            case BattleTargetMode.AllEnemies:
+                if (targetIds is not null && targetIds.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Actor '{actorId}' submitted explicit target ids for target mode '{targetMode}'.");
+                }
+
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(targetMode), targetMode, "Unsupported target mode.");
+        }
     }
 
     private void ValidateChosenEnemyAction(string actorId, BattleActionChoice choice)
@@ -539,89 +508,41 @@ public sealed class BattleRuntime : IBattleRuntime
         }
 
         BattleActorState actor = FindActor(actorId);
-        BattleActorDefinition actorDefinition = FindActorDefinition(actorId);
 
         if (actor.IsDefeated)
         {
             throw new InvalidOperationException($"Actor '{actorId}' cannot choose an action because they are defeated.");
         }
 
-        BattleActionDefinition? allowedAction = actorDefinition.AllowedActions
-            .FirstOrDefault(a => a.ActionKind == choice.ActionKind);
+        BattleInputAction selectedAction = FindAvailableAction(actorId, choice.ActionId);
 
-        if (allowedAction is null)
+        if (!selectedAction.IsEnabled)
         {
             throw new InvalidOperationException(
-                $"Actor '{actorId}' chose action '{choice.ActionKind}' but that action is not allowed.");
+                $"Actor '{actorId}' chose action '{choice.ActionId}', but that action is currently disabled.");
         }
 
-        if (choice.ActionKind == BattleActionKind.Escape && !_definition.Configuration.CanEscape)
+        if (selectedAction.TargetMode != choice.TargetMode)
         {
             throw new InvalidOperationException(
-                $"Actor '{actorId}' chose Escape, but escape is not allowed for this battle.");
+                $"Actor '{actorId}' chose action '{choice.ActionId}' with invalid target mode '{choice.TargetMode}'.");
         }
 
-        switch (choice.ActionKind)
-        {
-            case BattleActionKind.Attack:
-                if (choice.TargetMode != BattleTargetMode.SingleTarget)
-                {
-                    throw new InvalidOperationException(
-                        $"Actor '{actorId}' chose Attack with invalid target mode '{choice.TargetMode}'.");
-                }
-
-                if (choice.TargetIds is null || choice.TargetIds.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        $"Actor '{actorId}' chose Attack but did not provide exactly one target id.");
-                }
-
-                break;
-
-            case BattleActionKind.Defend:
-            case BattleActionKind.Escape:
-            case BattleActionKind.Wait:
-                if (choice.TargetMode != BattleTargetMode.None)
-                {
-                    throw new InvalidOperationException(
-                        $"Actor '{actorId}' chose '{choice.ActionKind}' with invalid target mode '{choice.TargetMode}'.");
-                }
-
-                if (choice.TargetIds is not null && choice.TargetIds.Count > 0)
-                {
-                    throw new InvalidOperationException(
-                        $"Actor '{actorId}' chose '{choice.ActionKind}' but provided unexpected target ids.");
-                }
-
-                break;
-
-            default:
-                throw new NotSupportedException(
-                    $"Enemy action validation is not yet supported for action kind '{choice.ActionKind}'.");
-        }
+        ValidateTargetIds(choice.TargetMode, choice.TargetIds, actorId);
     }
 
-    private void ExecuteAction(string actorId, BattleActionChoice choice)
+    private BattleInputAction FindAvailableAction(string actorId, string actionId)
     {
-        var occurrences = new List<BattleOccurrence>();
+        BattleInputAction? action = BuildAvailableActions(actorId)
+            .FirstOrDefault(a => string.Equals(a.ActionId, actionId, StringComparison.Ordinal));
 
-        occurrences.Add(new ActionStartedOccurrence(actorId, choice.ActionKind, choice.ActionId));
+        if (action is null)
+        {
+            throw new InvalidOperationException(
+                $"Actor '{actorId}' chose action '{actionId}', but that action is not available.");
+        }
 
-        BattleResolution resolution =
-            _actionResolver.Resolve(
-                new BattleResolverContext(
-                    definition: _definition,
-                    state: _runtimeState.BattleState,
-                    actorId: actorId,
-                    action: choice));
-
-        ApplyResolution(actorId, resolution, occurrences);
-
-        occurrences.Add(new ActionResolvedOccurrence(actorId, choice.ActionKind, choice.ActionId));
-
-        FinalizeBattleResultIfNeeded();
-
-        _runtimeState.SetOccurrences(occurrences);
+        return action;
     }
 
     private void ApplyResolution(
@@ -799,6 +720,19 @@ public sealed class BattleRuntime : IBattleRuntime
         return actorDefinition;
     }
 
+    private BattleTeamDefinition FindTeamDefinition(BattleTeam team)
+    {
+        BattleTeamDefinition? teamDefinition = _definition.TeamDefinitions
+            .FirstOrDefault(d => d.Team == team);
+
+        if (teamDefinition is null)
+        {
+            throw new InvalidOperationException($"Team definition for '{team}' was not found.");
+        }
+
+        return teamDefinition;
+    }
+
     private void FinalizeBattleResultIfNeeded()
     {
         if (_runtimeState.Result is not null)
@@ -823,38 +757,25 @@ public sealed class BattleRuntime : IBattleRuntime
 
     private sealed class PendingExecution
     {
-        public PendingExecution(string actorId, BattleActionChoice choice)
+        public PendingExecution(
+            string actorId,
+            BattleInputAction action,
+            IReadOnlyList<string>? targetIds)
         {
-            ActorId = actorId ?? throw new ArgumentNullException(nameof(actorId));
-            Choice = choice ?? throw new ArgumentNullException(nameof(choice));
-        }
-
-        public string ActorId { get; }
-
-        public BattleActionChoice Choice { get; }
-    }
-
-    private sealed class PendingTargetSelection
-    {
-        public PendingTargetSelection(string actorId, BattleActionChoice choice)
-        {
-            if (choice is null)
+            if (string.IsNullOrWhiteSpace(actorId))
             {
-                throw new ArgumentNullException(nameof(choice));
+                throw new ArgumentException("Actor id is required.", nameof(actorId));
             }
 
-            ActorId = actorId ?? throw new ArgumentNullException(nameof(actorId));
-            ActionKind = choice.ActionKind;
-            ActionId = choice.ActionId;
-            TargetMode = choice.TargetMode;
+            ActorId = actorId;
+            Action = action ?? throw new ArgumentNullException(nameof(action));
+            TargetIds = targetIds;
         }
 
         public string ActorId { get; }
 
-        public BattleActionKind ActionKind { get; }
+        public BattleInputAction Action { get; }
 
-        public string? ActionId { get; }
-
-        public BattleTargetMode TargetMode { get; }
+        public IReadOnlyList<string>? TargetIds { get; }
     }
 }

@@ -55,7 +55,7 @@ public sealed class RandomDamageBattleActionDecorator : IBattleActionResolver
 
         BattleResolution inner = _innerResolver.Resolve(context);
 
-        if (context.Action.ActionKind != BattleActionKind.Attack)
+        if (!string.Equals(context.Action.ActionId, "attack", StringComparison.Ordinal))
         {
             return inner;
         }

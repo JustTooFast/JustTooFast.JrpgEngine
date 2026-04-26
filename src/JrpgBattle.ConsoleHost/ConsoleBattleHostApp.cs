@@ -62,11 +62,16 @@ public sealed class ConsoleBattleHostApp
         Console.WriteLine();
         Console.WriteLine("=== Battle State ===");
 
-        foreach (BattleActorState actor in view.BattleState.Actors)
+        foreach (BattleActorView actor in view.BattleState.Actors)
         {
             Console.WriteLine(
-                $"{actor.Name} [{actor.Team}] HP {actor.CurrentHp}/{actor.MaxHp}" +
+                $"{actor.DisplayName} [{actor.Team}] HP {actor.CurrentHp}/{actor.MaxHp}" +
                 (actor.IsDefeated ? " (Defeated)" : string.Empty));
+
+            foreach (BattleExtendedDataEntry entry in actor.ExtendedData.Entries)
+            {
+                Console.WriteLine($"  {entry.Key}: {entry.Value}");
+            }
         }
 
         Console.WriteLine();
@@ -138,57 +143,22 @@ public sealed class ConsoleBattleHostApp
         BattleRuntimeView view,
         BattleInputRequest inputRequest)
     {
-        BattleActorState actor = view.BattleState.Actors.First(c => c.Id == inputRequest.ActorId);
+        BattleActorView actor = view.BattleState.Actors.First(c => c.ActorId == inputRequest.ActorId);
 
         Console.WriteLine();
-        Console.WriteLine($"[{inputRequest.CurrentContext.Kind}] {inputRequest.CurrentContext.Title ?? "Choose"} for {actor.Name}:");
+        Console.WriteLine($"Choose action for {actor.DisplayName}:");
 
-        if (inputRequest.RequiresTargetSelection && inputRequest.TargetSelection is not null)
+        IReadOnlyList<BattleInputAction> actions = inputRequest.Actions;
+
+        for (int i = 0; i < actions.Count; i++)
         {
-            IReadOnlyList<BattleSelectableTarget> targets = inputRequest.TargetSelection.SelectableTargets;
+            BattleInputAction action = actions[i];
+            string grouping = action.Category is null
+                ? action.ActionKind.ToString()
+                : $"{action.ActionKind} / {action.Category}";
+            string status = action.IsEnabled ? string.Empty : " (disabled)";
 
-            for (int i = 0; i < targets.Count; i++)
-            {
-                BattleSelectableTarget target = targets[i];
-                string status = target.IsEnabled ? string.Empty : " (disabled)";
-                Console.WriteLine($"{i + 1}. {target.Label}{status}");
-            }
-
-            while (true)
-            {
-                Console.Write("> ");
-                string? input = Console.ReadLine();
-
-                if (int.TryParse(input, out int index) &&
-                    index >= 1 &&
-                    index <= targets.Count)
-                {
-                    BattleSelectableTarget selected = targets[index - 1];
-
-                    if (!selected.IsEnabled)
-                    {
-                        Console.WriteLine("Target is not selectable.");
-                        continue;
-                    }
-
-                    return new BattleActionChoice(
-                        actionKind: inputRequest.CurrentContext.ActionKind!.Value,
-                        actionId: inputRequest.CurrentContext.ActionId,
-                        targetMode: inputRequest.TargetSelection.TargetMode,
-                        targetIds: new[] { selected.ActorId });
-                }
-
-                Console.WriteLine("Invalid target.");
-            }
-        }
-
-        IReadOnlyList<BattleMenuOption> options = inputRequest.Options;
-
-        for (int i = 0; i < options.Count; i++)
-        {
-            BattleMenuOption option = options[i];
-            string status = option.IsEnabled ? string.Empty : $" (disabled: {option.DisabledReason})";
-            Console.WriteLine($"{i + 1}. {option.Label}{status}");
+            Console.WriteLine($"{i + 1}. [{grouping}] {action.DisplayText}{status}");
         }
 
         while (true)
@@ -196,35 +166,87 @@ public sealed class ConsoleBattleHostApp
             Console.Write("> ");
             string? input = Console.ReadLine();
 
-            if (int.TryParse(input, out int index) &&
-                index >= 1 &&
-                index <= options.Count)
+            if (!int.TryParse(input, out int index) || index < 1 || index > actions.Count)
             {
-                BattleMenuOption selected = options[index - 1];
-
-                if (!selected.IsEnabled)
-                {
-                    Console.WriteLine("Option is disabled.");
-                    continue;
-                }
-
-                if (selected.Kind == BattleMenuOptionKind.Back)
-                {
-                    return new BattleActionChoice(
-                        actionKind: BattleActionKind.Wait,
-                        actionId: null,
-                        targetMode: BattleTargetMode.None,
-                        targetIds: null);
-                }
-
-                return new BattleActionChoice(
-                    actionKind: selected.ActionKind ?? throw new InvalidOperationException("Selected action option did not provide an action kind."),
-                    actionId: selected.ActionId,
-                    targetMode: selected.TargetMode,
-                    targetIds: null);
+                Console.WriteLine("Invalid choice.");
+                continue;
             }
 
-            Console.WriteLine("Invalid choice.");
+            BattleInputAction selected = actions[index - 1];
+
+            if (!selected.IsEnabled)
+            {
+                Console.WriteLine("Action is disabled.");
+                continue;
+            }
+
+            IReadOnlyList<string>? targetIds = null;
+
+            if (selected.TargetMode == BattleTargetMode.SingleTarget)
+            {
+                targetIds = PromptForSingleTarget(view, actor.Team);
+            }
+            else if (selected.TargetMode == BattleTargetMode.AllAllies ||
+                     selected.TargetMode == BattleTargetMode.AllEnemies ||
+                     selected.TargetMode == BattleTargetMode.None)
+            {
+                targetIds = null;
+            }
+            else
+            {
+                throw new NotSupportedException(
+                    $"Target mode '{selected.TargetMode}' is not supported by the console host.");
+            }
+
+            return new BattleActionChoice(
+                actionId: selected.ActionId,
+                targetMode: selected.TargetMode,
+                targetIds: targetIds);
+        }
+    }
+
+    private static IReadOnlyList<string> PromptForSingleTarget(
+        BattleRuntimeView view,
+        BattleTeam actingTeam)
+    {
+        BattleTeam targetTeam = actingTeam == BattleTeam.Party
+            ? BattleTeam.Enemy
+            : BattleTeam.Party;
+
+        BattleActorView[] targets = view.BattleState.Actors
+            .Where(a => a.Team == targetTeam)
+            .ToArray();
+
+        Console.WriteLine();
+        Console.WriteLine("Choose target:");
+
+        for (int i = 0; i < targets.Length; i++)
+        {
+            BattleActorView target = targets[i];
+            string status = target.IsDefeated ? " (defeated)" : string.Empty;
+            Console.WriteLine($"{i + 1}. {target.DisplayName}{status}");
+        }
+
+        while (true)
+        {
+            Console.Write("> ");
+            string? input = Console.ReadLine();
+
+            if (!int.TryParse(input, out int index) || index < 1 || index > targets.Length)
+            {
+                Console.WriteLine("Invalid target.");
+                continue;
+            }
+
+            BattleActorView selected = targets[index - 1];
+
+            if (selected.IsDefeated)
+            {
+                Console.WriteLine("Target is not selectable.");
+                continue;
+            }
+
+            return new[] { selected.ActorId };
         }
     }
 }

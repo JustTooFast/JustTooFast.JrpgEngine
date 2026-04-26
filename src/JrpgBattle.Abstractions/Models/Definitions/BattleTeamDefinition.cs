@@ -35,16 +35,16 @@ public sealed record BattleTeamDefinition
             throw new ArgumentException("Items cannot contain null entries.", nameof(items));
         }
 
-        string[] duplicateItemIds = items
-            .GroupBy(static item => item.Id, StringComparer.Ordinal)
+        string[] duplicateItemActionIds = items
+            .GroupBy(static item => item.ActionId, StringComparer.Ordinal)
             .Where(static group => group.Count() > 1)
             .Select(static group => group.Key)
             .ToArray();
 
-        if (duplicateItemIds.Length > 0)
+        if (duplicateItemActionIds.Length > 0)
         {
             throw new ArgumentException(
-                $"Item ids must be unique per team: {string.Join(", ", duplicateItemIds)}.",
+                $"Item action ids must be unique per team: {string.Join(", ", duplicateItemActionIds)}.",
                 nameof(items));
         }
 

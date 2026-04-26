@@ -100,7 +100,7 @@ public sealed class BattleRuntimeTests
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        BattleActorState slime = view.BattleState.Actors.Single(c => c.Id == "slime_1");
+        BattleActorView slime = view.BattleState.Actors.Single(c => c.ActorId == "slime_1");
 
         Assert.AreEqual(5, slime.CurrentHp);
         Assert.IsTrue(view.Occurrences.OfType<ActionStartedOccurrence>().Any());
@@ -164,7 +164,7 @@ public sealed class BattleRuntimeTests
         runtime.Advance();
 
         BattleRuntimeView view = runtime.GetView();
-        BattleActorState hero = view.BattleState.Actors.Single(c => c.Id == "hero");
+        BattleActorView hero = view.BattleState.Actors.Single(c => c.ActorId == "hero");
 
         Assert.AreEqual(0, hero.CurrentHp);
         Assert.IsNotNull(view.Result);

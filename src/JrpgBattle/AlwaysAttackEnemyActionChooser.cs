@@ -40,15 +40,13 @@ public sealed class AlwaysAttackEnemyActionChooser : IEnemyActionChooser
         if (availableTargetIds.Length == 0)
         {
             return new BattleActionChoice(
-                actionKind: BattleActionKind.Attack,
-                actionId: null,
+                actionId: "attack",
                 targetMode: BattleTargetMode.None,
                 targetIds: null);
         }
 
         return new BattleActionChoice(
-            actionKind: BattleActionKind.Attack,
-            actionId: null,
+            actionId: "attack",
             targetMode: BattleTargetMode.SingleTarget,
             targetIds: new[] { availableTargetIds[0] });
     }

@@ -95,42 +95,42 @@ public sealed record BattleActorDefinition
             throw new ArgumentException("Skills cannot contain null entries.", nameof(skills));
         }
 
-        BattleActionKind[] duplicateAllowedActionKinds = allowedActions
-            .GroupBy(static action => action.ActionKind)
+        string[] duplicateAllowedActionIds = allowedActions
+            .GroupBy(static action => action.ActionId, StringComparer.Ordinal)
             .Where(static group => group.Count() > 1)
             .Select(static group => group.Key)
             .ToArray();
 
-        if (duplicateAllowedActionKinds.Length > 0)
+        if (duplicateAllowedActionIds.Length > 0)
         {
             throw new ArgumentException(
-                $"Allowed actions must be unique by action kind: {string.Join(", ", duplicateAllowedActionKinds)}.",
+                $"Allowed action ids must be unique per actor: {string.Join(", ", duplicateAllowedActionIds)}.",
                 nameof(allowedActions));
         }
 
-        string[] duplicateSpellIds = spells
-            .GroupBy(static spell => spell.Id, StringComparer.Ordinal)
+        string[] duplicateSpellActionIds = spells
+            .GroupBy(static spell => spell.ActionId, StringComparer.Ordinal)
             .Where(static group => group.Count() > 1)
             .Select(static group => group.Key)
             .ToArray();
 
-        if (duplicateSpellIds.Length > 0)
+        if (duplicateSpellActionIds.Length > 0)
         {
             throw new ArgumentException(
-                $"Spell ids must be unique per actor: {string.Join(", ", duplicateSpellIds)}.",
+                $"Spell action ids must be unique per actor: {string.Join(", ", duplicateSpellActionIds)}.",
                 nameof(spells));
         }
 
-        string[] duplicateSkillIds = skills
-            .GroupBy(static skill => skill.Id, StringComparer.Ordinal)
+        string[] duplicateSkillActionIds = skills
+            .GroupBy(static skill => skill.ActionId, StringComparer.Ordinal)
             .Where(static group => group.Count() > 1)
             .Select(static group => group.Key)
             .ToArray();
 
-        if (duplicateSkillIds.Length > 0)
+        if (duplicateSkillActionIds.Length > 0)
         {
             throw new ArgumentException(
-                $"Skill ids must be unique per actor: {string.Join(", ", duplicateSkillIds)}.",
+                $"Skill action ids must be unique per actor: {string.Join(", ", duplicateSkillActionIds)}.",
                 nameof(skills));
         }
 

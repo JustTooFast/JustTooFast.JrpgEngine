@@ -5,15 +5,15 @@ using System;
 
 namespace JustTooFast.JrpgBattle.Abstractions.Models;
 
-public sealed record BattleActionDefinition
+public sealed record BattleInputAction
 {
-    public BattleActionDefinition(
+    public BattleInputAction(
         string actionId,
         string displayText,
         BattleActionKind actionKind,
         string? category,
         BattleTargetMode targetMode,
-        BattleExtendedData extendedData)
+        bool isEnabled)
     {
         if (string.IsNullOrWhiteSpace(actionId))
         {
@@ -27,17 +27,12 @@ public sealed record BattleActionDefinition
 
         if (!Enum.IsDefined(actionKind))
         {
-            throw new ArgumentOutOfRangeException(nameof(actionKind), "Action kind must be a defined BattleActionKind value.");
+            throw new ArgumentOutOfRangeException(nameof(actionKind), "Action kind must be a defined value.");
         }
 
         if (!Enum.IsDefined(targetMode))
         {
-            throw new ArgumentOutOfRangeException(nameof(targetMode), "Target mode must be a defined BattleTargetMode value.");
-        }
-
-        if (extendedData is null)
-        {
-            throw new ArgumentNullException(nameof(extendedData));
+            throw new ArgumentOutOfRangeException(nameof(targetMode), "Target mode must be a defined value.");
         }
 
         ActionId = actionId;
@@ -45,7 +40,7 @@ public sealed record BattleActionDefinition
         ActionKind = actionKind;
         Category = string.IsNullOrWhiteSpace(category) ? null : category;
         TargetMode = targetMode;
-        ExtendedData = extendedData;
+        IsEnabled = isEnabled;
     }
 
     public string ActionId { get; }
@@ -58,5 +53,5 @@ public sealed record BattleActionDefinition
 
     public BattleTargetMode TargetMode { get; }
 
-    public BattleExtendedData ExtendedData { get; }
+    public bool IsEnabled { get; }
 }

@@ -11,39 +11,18 @@ namespace JustTooFast.JrpgBattle.Abstractions.Models;
 public sealed record BattleActionChoice
 {
     public BattleActionChoice(
-        BattleActionKind actionKind,
-        string? actionId,
+        string actionId,
         BattleTargetMode targetMode,
         IReadOnlyList<string>? targetIds)
     {
-        if (actionKind == BattleActionKind.Attack && string.IsNullOrWhiteSpace(actionId) == false)
+        if (string.IsNullOrWhiteSpace(actionId))
         {
-            throw new ArgumentException("Attack choices must not provide a specific action id.", nameof(actionId));
+            throw new ArgumentException("Action id is required.", nameof(actionId));
         }
 
-        if (actionKind == BattleActionKind.Defend && string.IsNullOrWhiteSpace(actionId) == false)
+        if (!Enum.IsDefined(targetMode))
         {
-            throw new ArgumentException("Defend choices must not provide a specific action id.", nameof(actionId));
-        }
-
-        if (actionKind == BattleActionKind.Escape && string.IsNullOrWhiteSpace(actionId) == false)
-        {
-            throw new ArgumentException("Escape choices must not provide a specific action id.", nameof(actionId));
-        }
-
-        if (actionKind == BattleActionKind.Wait && string.IsNullOrWhiteSpace(actionId) == false)
-        {
-            throw new ArgumentException("Wait choices must not provide a specific action id.", nameof(actionId));
-        }
-
-        if ((actionKind == BattleActionKind.Magic
-            || actionKind == BattleActionKind.Skill
-            || actionKind == BattleActionKind.Item)
-            && string.IsNullOrWhiteSpace(actionId))
-        {
-            throw new ArgumentException(
-                $"Choices of kind '{actionKind}' must provide a specific action id.",
-                nameof(actionId));
+            throw new ArgumentOutOfRangeException(nameof(targetMode), "Target mode must be a defined value.");
         }
 
         if (targetIds is not null && targetIds.Any(static id => string.IsNullOrWhiteSpace(id)))
@@ -51,8 +30,7 @@ public sealed record BattleActionChoice
             throw new ArgumentException("Target ids cannot contain null or whitespace values.", nameof(targetIds));
         }
 
-        ActionKind = actionKind;
-        ActionId = string.IsNullOrWhiteSpace(actionId) ? null : actionId;
+        ActionId = actionId;
         TargetMode = targetMode;
         TargetIds = targetIds is null
             ? null
@@ -61,9 +39,7 @@ public sealed record BattleActionChoice
         ValidateTargetShape(targetMode, TargetIds);
     }
 
-    public BattleActionKind ActionKind { get; }
-
-    public string? ActionId { get; }
+    public string ActionId { get; }
 
     public BattleTargetMode TargetMode { get; }
 
